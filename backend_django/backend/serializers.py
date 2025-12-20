@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
@@ -118,16 +119,33 @@ class BookingSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        validated_data["customer"] = self.context["request"].user
-        
-        # Auto-assign service and resource from the slot
-        slot = validated_data.get("slot")
-        if slot:
-            validated_data["service"] = slot.service
-            if slot.resource:
-                validated_data["resource"] = slot.resource
-        
-        return super().create(validated_data)
+        request = self.context["request"]
+        slot = validated_data["slot"]
+        quantity = validated_data.get("quantity", 1)
+
+        with transaction.atomic():
+            slot = Slot.objects.select_for_update().get(id=slot.id)
+            if slot.booked_count + quantity > slot.capacity:
+                raise serializers.ValidationError(
+                    {"capacity": "Slot capacity exceeded"}
+                )
+            booking = Booking.objects.create(
+                customer=request.user,
+                slot=slot,
+                service=slot.service,
+                resource=slot.resource,
+                quantity=quantity,
+                answers=validated_data.get("answers", {}),
+            )
+            slot.booked_count += quantity
+            slot.save(updated_fields=["booked_count"])
+
+            service = booking.service
+
+            if not service.manual_confirmation and not service.advance_payment_required:
+                booking.status = "confirmed"
+                booking.save(update_fields=["status"])
+        return booking
 
 
 class NotificationSerializer(serializers.ModelSerializer):

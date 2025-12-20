@@ -1,6 +1,10 @@
 import uuid
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+from django.contrib.auth.models import (
+    AbstractBaseUser,
+    PermissionsMixin,
+    BaseUserManager,
+)
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 
@@ -93,7 +97,9 @@ class OTP(models.Model):
 
 class Service(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organiser = models.ForeignKey(User, on_delete=models.CASCADE, related_name="services")
+    organiser = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="services"
+    )
 
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -121,7 +127,9 @@ class Resource(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name="resources")
+    service = models.ForeignKey(
+        Service, on_delete=models.CASCADE, related_name="resources"
+    )
 
     name = models.CharField(max_length=255)
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)
@@ -136,12 +144,21 @@ class Resource(models.Model):
 class WorkingHours(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     service = models.ForeignKey(Service, on_delete=models.CASCADE)
-    resource = models.ForeignKey(Resource, null=True, blank=True, on_delete=models.CASCADE)
+    resource = models.ForeignKey(
+        Resource, null=True, blank=True, on_delete=models.CASCADE
+    )
 
-    day_of_week = models.IntegerField(choices=[
-        (0,"Mon"),(1,"Tue"),(2,"Wed"),
-        (3,"Thu"),(4,"Fri"),(5,"Sat"),(6,"Sun")
-    ])
+    day_of_week = models.IntegerField(
+        choices=[
+            (0, "Mon"),
+            (1, "Tue"),
+            (2, "Wed"),
+            (3, "Thu"),
+            (4, "Fri"),
+            (5, "Sat"),
+            (6, "Sun"),
+        ]
+    )
 
     start_time = models.TimeField()
     end_time = models.TimeField()
@@ -157,7 +174,9 @@ class Slot(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     service = models.ForeignKey(Service, on_delete=models.CASCADE)
-    resource = models.ForeignKey(Resource, null=True, blank=True, on_delete=models.CASCADE)
+    resource = models.ForeignKey(
+        Resource, null=True, blank=True, on_delete=models.CASCADE
+    )
 
     start_datetime = models.DateTimeField()
     end_datetime = models.DateTimeField()
@@ -183,7 +202,9 @@ class Booking(models.Model):
 
     customer = models.ForeignKey(User, on_delete=models.CASCADE)
     service = models.ForeignKey(Service, on_delete=models.CASCADE)
-    resource = models.ForeignKey(Resource, null=True, blank=True, on_delete=models.SET_NULL)
+    resource = models.ForeignKey(
+        Resource, null=True, blank=True, on_delete=models.SET_NULL
+    )
     slot = models.ForeignKey(Slot, on_delete=models.PROTECT)
 
     status = models.CharField(
@@ -194,6 +215,8 @@ class Booking(models.Model):
     answers = models.JSONField(default=dict)
 
     created_at = models.DateTimeField(auto_now_add=True)
+
+    quantity = models.PositiveIntegerField(default=1)
 
     def clean(self):
         if self.service_id != self.slot.service_id:
@@ -242,4 +265,3 @@ class Notification(models.Model):
 
     is_sent = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-

@@ -23,12 +23,10 @@ urlpatterns = [
     path("auth/login/", LoginView.as_view()),
     path("auth/refresh/", TokenRefreshView.as_view()),
     path("profile/", ProfileView.as_view()),
-
     path(
         "availability/<uuid:service_id>/<str:date_str>/",
         AvailabilityView.as_view(),
     ),
     path("dashboard/stats/", DashboardStatsView.as_view()),
-
     path("", include(router.urls)),
 ]
