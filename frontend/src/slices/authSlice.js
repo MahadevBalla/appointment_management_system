@@ -3,6 +3,8 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 // Load tokens if they exist in localStorage
 const tokensFromStorage = localStorage.getItem("authTokens")
     ? JSON.parse(localStorage.getItem("authTokens"))
+    : sessionStorage.getItem("authTokens")
+    ? JSON.parse(sessionStorage.getItem("authTokens"))
     : null;
 
 const initialState = {
@@ -48,7 +50,7 @@ export const login = createAsyncThunk(
 // SIGNUP
 export const signup = createAsyncThunk(
     "auth/signup",
-    async ({ full_name, email, phone_no, notification_preference, password, confirm_password, rememberMe }, { dispatch, rejectWithValue }) => {
+    async ({ full_name, email, phone_no, notification_preference, password, confirm_password }, { rejectWithValue }) => {
         try {
             const res = await fetch('/api/auth/register/', {
                 method: "POST",
@@ -60,8 +62,39 @@ export const signup = createAsyncThunk(
                 const errorData = await res.json();
                 throw new Error(JSON.stringify(errorData));
             }
-            // Automatically log in after signup
-            await dispatch(login({ email, password, rememberMe }));
+            
+            const data = await res.json();
+            return { email, password, message: data.message };
+        } catch (err) {
+            return rejectWithValue(err.message);
+        }
+    }
+);
+
+// VERIFY OTP
+export const verifyOtp = createAsyncThunk(
+    "auth/verifyOtp",
+    async ({ email, otp, purpose, password, rememberMe }, { dispatch, rejectWithValue }) => {
+        try {
+            const res = await fetch('/api/auth/verify-otp/', {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, otp, purpose }),
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || "Invalid OTP");
+            }
+
+            const data = await res.json();
+            
+            // After OTP verification for signup, auto-login
+            if (purpose === 'signup' && password) {
+                await dispatch(login({ email, password, rememberMe }));
+            }
+            
+            return data;
         } catch (err) {
             return rejectWithValue(err.message);
         }
@@ -125,7 +158,7 @@ const authSlice = createSlice({
                 state.tokens = action.payload;
                 state.isAuthenticated = true;
                 state.loading = false;
-                
+
                 // Store user data from login response if available
                 if (action.payload.user) {
                     state.user = action.payload.user;
@@ -151,8 +184,22 @@ const authSlice = createSlice({
             })
             .addCase(signup.fulfilled, (state) => {
                 state.loading = false;
+                state.error = null;
             })
             .addCase(signup.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            })
+            // VERIFY OTP
+            .addCase(verifyOtp.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(verifyOtp.fulfilled, (state) => {
+                state.loading = false;
+                state.error = null;
+            })
+            .addCase(verifyOtp.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             })

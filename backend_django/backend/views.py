@@ -12,12 +12,19 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.views import TokenObtainPairView
+<<<<<<< Updated upstream
 from rest_framework_simplejwt.token_blacklist.models import (
     OutstandingToken,
     BlacklistedToken,
 )
 from razorpay.errors import SignatureVerificationError
 from .models import Service, Resource, Slot, Booking, OTP, Payment
+=======
+from django.core.cache import cache
+import datetime
+
+from .models import Service, Resource, Slot, Booking, OTP
+>>>>>>> Stashed changes
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
@@ -64,7 +71,7 @@ class VerifyOtpView(APIView):
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
-    @ratelimit(key="ip", rate="5/m", block=True)
+    # @ratelimit(key="ip", rate="5/m", block=True)
     def post(self, request):
         serializer = VerifyOtpSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

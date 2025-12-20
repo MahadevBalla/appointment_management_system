@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Button, Burger, Drawer, ScrollArea } from '@mantine/core';
+import { Button, Burger, Drawer, ScrollArea, Avatar, Menu } from '@mantine/core';
+import { IconUser, IconLogout, IconSettings } from '@tabler/icons-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../slices/authSlice';
 
@@ -30,7 +31,7 @@ const NavBar = () => {
   );
 
   const desktopNav = (
-    <div className="hidden md:flex justify-center gap-6">
+    <div className="hidden md:flex justify-center gap-6 items-center">
       {filteredLinks.map((link) => (
         <Link key={link.to} to={link.to}>
           <Button
@@ -42,9 +43,26 @@ const NavBar = () => {
         </Link>
       ))}
       {isAuthenticated && (
-        <Button color="red" variant="subtle" onClick={handleLogout}>
-          Logout
-        </Button>
+        <Menu shadow="md" width={200}>
+          <Menu.Target>
+            <Avatar
+              className="cursor-pointer hover:ring-2 hover:ring-teal-500 transition-all"
+              color="teal"
+              radius="xl"
+            >
+              <IconUser size={20} />
+            </Avatar>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Item icon={<IconUser size={16} />} component={Link} to="/profile">
+              My Profile
+            </Menu.Item>
+            <Menu.Divider />
+            <Menu.Item icon={<IconLogout size={16} />} color="red" onClick={handleLogout}>
+              Logout
+            </Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
       )}
     </div>
   );
