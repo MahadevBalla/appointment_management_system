@@ -12,6 +12,10 @@ const Login = lazy(() => import("./pgs/Login"));
 const About = lazy(() => import("./pgs/About"));
 const Dashboard = lazy(() => import("./pgs/Appointments"));
 const AppointmentForm = lazy(() => import("./pgs/AppointmentForm"));
+const Resources = lazy(() => import("./pgs/Resources"));
+const Users = lazy(() => import("./pgs/Users"));
+const Meetings = lazy(() => import("./pgs/Meetings"));
+const Reporting = lazy(() => import("./pgs/Reporting"));
 const AIChatAssistant = lazy(() => import("./components/AIChatAssistant"));
 
 
@@ -68,6 +72,38 @@ const App = () => {
                 element={
                   <PrivateRoute>
                     <AppointmentForm />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/settings/resources"
+                element={
+                  <PrivateRoute>
+                    <Resources />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/settings/users"
+                element={
+                  <PrivateRoute>
+                    <Users />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/meetings"
+                element={
+                  <PrivateRoute>
+                    <Meetings />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/reporting"
+                element={
+                  <PrivateRoute>
+                    <Reporting />
                   </PrivateRoute>
                 }
               />

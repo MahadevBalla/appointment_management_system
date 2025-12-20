@@ -15,6 +15,12 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Table,
   TableBody,
   TableCell,
@@ -52,6 +58,22 @@ const AppointmentForm = () => {
 
   const [selectedUsers, setSelectedUsers] = useState(['A1 User 1', 'A2 User 2']);
   const [activeTab, setActiveTab] = useState('schedule');
+
+  // Misc tab state
+  const [miscData, setMiscData] = useState({
+    introductionMessage: 'Schedule your visit today and experience expert dental care brought right to your doorstep.',
+    confirmationMessage: 'Thank you for your trust we look forward to meeting you',
+  });
+
+  // Options tab state
+  const [optionsData, setOptionsData] = useState({
+    manualConfirmation: true,
+    capacityPercentage: 50,
+    paidBooking: true,
+    bookingFees: 200,
+    createSlotHours: 0.5,
+    cancellationHours: 1,
+  });
 
   // Answer type options for dialog
   const answerTypeOptions = [
@@ -333,15 +355,29 @@ const AppointmentForm = () => {
                 <BarChart3 className="h-4 w-4" />
                 Reporting
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/settings')}
-                className="flex items-center gap-2"
-              >
-                <SettingsIcon className="h-4 w-4" />
-                Settings
-              </Button>
+              
+              {/* Settings Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <SettingsIcon className="h-4 w-4" />
+                    Settings
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => navigate('/settings/users')}>
+                    Users
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/settings/resources')}>
+                    Resources
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Button
                 variant="ghost"
                 size="sm"
@@ -788,14 +824,137 @@ const AppointmentForm = () => {
               </TabsContent>
 
               <TabsContent value="options" className="mt-0">
-                <div className="text-center py-8 text-gray-500">
-                  Options tab content - Coming soon
+                <div className="space-y-6">
+                  {/* Manual Confirmation */}
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="manual-confirmation"
+                      checked={optionsData.manualConfirmation}
+                      onCheckedChange={(checked) => setOptionsData({ ...optionsData, manualConfirmation: checked })}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 space-y-2">
+                      <Label htmlFor="manual-confirmation" className="cursor-pointer text-sm font-semibold text-gray-700">
+                        Manual confirmation
+                      </Label>
+                      {optionsData.manualConfirmation && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600">Upto</span>
+                          <Input
+                            type="number"
+                            value={optionsData.capacityPercentage}
+                            onChange={(e) => setOptionsData({ ...optionsData, capacityPercentage: parseInt(e.target.value) || 0 })}
+                            className="w-20 text-center"
+                            min="0"
+                            max="100"
+                          />
+                          <span className="text-sm text-gray-600">% of capacity</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Paid Booking */}
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="paid-booking"
+                      checked={optionsData.paidBooking}
+                      onCheckedChange={(checked) => setOptionsData({ ...optionsData, paidBooking: checked })}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 space-y-2">
+                      <Label htmlFor="paid-booking" className="cursor-pointer text-sm font-semibold text-gray-700">
+                        Paid Booking
+                      </Label>
+                      {optionsData.paidBooking && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600">Booking Fees (Rs</span>
+                          <Input
+                            type="number"
+                            value={optionsData.bookingFees}
+                            onChange={(e) => setOptionsData({ ...optionsData, bookingFees: parseInt(e.target.value) || 0 })}
+                            className="w-24 text-center"
+                            min="0"
+                          />
+                          <span className="text-sm text-gray-600">Per booking)</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right side options */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-200">
+                    {/* Create Slot */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold text-gray-700">
+                        Create Slot
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          step="0.5"
+                          value={optionsData.createSlotHours}
+                          onChange={(e) => setOptionsData({ ...optionsData, createSlotHours: parseFloat(e.target.value) || 0 })}
+                          className="w-24"
+                          min="0"
+                        />
+                        <span className="text-sm text-gray-600">hours</span>
+                      </div>
+                    </div>
+
+                    {/* Cancellation */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold text-gray-700">
+                        Cancellation
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600">up to</span>
+                        <Input
+                          type="number"
+                          step="0.5"
+                          value={optionsData.cancellationHours}
+                          onChange={(e) => setOptionsData({ ...optionsData, cancellationHours: parseFloat(e.target.value) || 0 })}
+                          className="w-24"
+                          min="0"
+                        />
+                        <span className="text-sm text-gray-600">hour(s) before the booking</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </TabsContent>
 
               <TabsContent value="misc" className="mt-0">
-                <div className="text-center py-8 text-gray-500">
-                  Misc tab content - Coming soon
+                <div className="space-y-6">
+                  {/* Introduction Page Message */}
+                  <div className="space-y-3">
+                    <Label htmlFor="intro-message" className="text-sm font-semibold text-gray-700">
+                      Introduction page message
+                    </Label>
+                    <textarea
+                      id="intro-message"
+                      value={miscData.introductionMessage}
+                      onChange={(e) => setMiscData({ ...miscData, introductionMessage: e.target.value })}
+                      rows={3}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      placeholder="Enter introduction message..."
+                    />
+                  </div>
+
+                  {/* Confirmation Page Message */}
+                  <div className="space-y-3">
+                    <Label htmlFor="confirmation-message" className="text-sm font-semibold text-gray-700">
+                      Confirmation page message
+                    </Label>
+                    <textarea
+                      id="confirmation-message"
+                      value={miscData.confirmationMessage}
+                      onChange={(e) => setMiscData({ ...miscData, confirmationMessage: e.target.value })}
+                      rows={3}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      placeholder="Enter confirmation message..."
+                    />
+                  </div>
                 </div>
               </TabsContent>
             </div>
