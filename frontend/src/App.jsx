@@ -8,6 +8,7 @@ import NavBar from "./components/NavBar";
 import Home from "./pgs/Home";
 import Signup from "./pgs/Signup";
 import './index.css'; // or whatever you named your CSS file
+const Profile = lazy(() => import("./pgs/Profile"));
 const Login = lazy(() => import("./pgs/Login"));
 const About = lazy(() => import("./pgs/About"));
 const Dashboard = lazy(() => import("./pgs/Appointments"));
@@ -30,6 +31,7 @@ const App = () => {
   const location = useLocation();
   const { tokens } = useSelector(state => state.auth);
   const hideNavBar = location.pathname.includes('/dashboard/') && location.pathname !== '/dashboard';
+  
 
   useEffect(() => {
     let interval;
@@ -51,6 +53,14 @@ const App = () => {
               <Route path="/about" element={<About />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              <Route
+                path="/profile"
+                element={
+                  <PrivateRoute>
+                    <Profile />
+                  </PrivateRoute>
+                }
+              />
               <Route
                 path="/dashboard"
                 element={

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Text,
   Title,
@@ -11,18 +11,24 @@ import {
   Divider,
   Image,
   Anchor,
-  Select
+  Select,
+  PinInput,
+  Alert
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconLock, IconAt, IconUser, IconCheck } from '@tabler/icons-react';
+import { IconLock, IconAt, IconUser, IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { signup } from '../slices/authSlice';
+import { signup, verifyOtp } from '../slices/authSlice';
 
 const Signup = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { isAuthenticated, loading, error } = useSelector((state) => state.auth);
+  
+  const [step, setStep] = useState(1); // 1 = signup form, 2 = OTP verification
+  const [signupData, setSignupData] = useState(null);
+  const [otp, setOtp] = useState('');
 
   const form = useForm({
     initialValues: {
@@ -45,20 +51,39 @@ const Signup = () => {
     },
   });
 
-  const handleSubmit = (values) => {
-    dispatch(signup({
+  const handleSubmit = async (values) => {
+    const result = await dispatch(signup({
       full_name: values.full_name,
       email: values.email,
       phone_no: values.phone_no,
       notification_preference: values.notification_preference,
       password: values.password,
       confirm_password: values.confirm_password,
-      rememberMe: true,
     }));
+    
+    if (!result.error) {
+      setSignupData({
+        email: values.email,
+        password: values.password,
+      });
+      setStep(2);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (otp.length === 6) {
+      await dispatch(verifyOtp({
+        email: signupData.email,
+        otp: otp,
+        purpose: 'signup',
+        password: signupData.password,
+        rememberMe: true,
+      }));
+    }
   };
 
   useEffect(() => {
-    if (isAuthenticated) navigate('/dashboard');
+    if (isAuthenticated) navigate('/');
   }, [isAuthenticated, navigate]);
 
   return (
@@ -113,109 +138,153 @@ const Signup = () => {
             </div>
 
             <Title order={2} className="text-teal-800 mb-2 md:hidden text-center">Join Us</Title>
-            <Title order={3} className="text-teal-800 mb-6">Create your account</Title>
+            <Title order={3} className="text-teal-800 mb-6">
+              {step === 1 ? 'Create your account' : 'Verify your email'}
+            </Title>
 
-            <form onSubmit={form.onSubmit(handleSubmit)}>
-              <TextInput
-                label="Full Name"
-                placeholder="John Doe"
-                size="md"
-                radius="md"
-                icon={<IconUser size={16} />}
-                className="mb-4"
-                {...form.getInputProps('full_name')}
-              />
-
-              <Group grow className="mb-4">
+            {step === 1 ? (
+              <form onSubmit={form.onSubmit(handleSubmit)}>
                 <TextInput
-                  label="Phone Number"
-                  placeholder="+91 98765 43210"
+                  label="Full Name"
+                  placeholder="John Doe"
                   size="md"
                   radius="md"
-                  {...form.getInputProps('phone_no')}
+                  icon={<IconUser size={16} />}
+                  className="mb-4"
+                  {...form.getInputProps('full_name')}
                 />
 
-                <Select
-                  label="Notification Preference"
-                  placeholder="Select"
+                <Group grow className="mb-4">
+                  <TextInput
+                    label="Phone Number"
+                    placeholder="+91 98765 43210"
+                    size="md"
+                    radius="md"
+                    {...form.getInputProps('phone_no')}
+                  />
+
+                  <Select
+                    label="Notification Preference"
+                    placeholder="Select"
+                    size="md"
+                    radius="md"
+                    data={[
+                      { value: 'whatsapp', label: 'WhatsApp' },
+                      { value: 'sms', label: 'SMS' },
+                      { value: 'email', label: 'Email' },
+                    ]}
+                    onChange={(val) => form.setFieldValue('notification_preference', val)}
+                    searchable
+                    clearable={false}
+                  />
+                </Group>
+
+                <TextInput
+                  label="Email"
+                  placeholder="your@email.com"
                   size="md"
                   radius="md"
-                  data={[
-                    { value: 'whatsapp', label: 'WhatsApp' },
-                    { value: 'sms', label: 'SMS' },
-                    { value: 'email', label: 'Email' },
-                  ]}
-                  onChange={(val) => form.setFieldValue('notification_preference', val)}
-                  searchable
-                  clearable={false}
+                  icon={<IconAt size={16} />}
+                  className="mb-4"
+                  {...form.getInputProps('email')}
                 />
 
-              </Group>
+                <PasswordInput
+                  label="Password"
+                  placeholder="Your password"
+                  size="md"
+                  radius="md"
+                  icon={<IconLock size={16} />}
+                  className="mb-4"
+                  {...form.getInputProps('password')}
+                />
 
-              <TextInput
-                label="Email"
-                placeholder="your@email.com"
-                size="md"
-                radius="md"
-                icon={<IconAt size={16} />}
-                className="mb-4"
-                {...form.getInputProps('email')}
-              />
+                <PasswordInput
+                  label="Confirm Password"
+                  placeholder="Confirm your password"
+                  size="md"
+                  radius="md"
+                  icon={<IconCheck size={16} />}
+                  className="mb-4"
+                  {...form.getInputProps('confirm_password')}
+                />
 
-              <PasswordInput
-                label="Password"
-                placeholder="Your password"
-                size="md"
-                radius="md"
-                icon={<IconLock size={16} />}
-                className="mb-4"
-                {...form.getInputProps('password')}
-              />
+                <Checkbox
+                  label={
+                    <Text>
+                      I agree to the{' '}
+                      <Anchor href="/terms" className="text-teal-700 hover:underline">terms and conditions</Anchor>
+                    </Text>
+                  }
+                  {...form.getInputProps('terms', { type: 'checkbox' })}
+                  className="mb-6"
+                />
 
-              <PasswordInput
-                label="Confirm Password"
-                placeholder="Confirm your password"
-                size="md"
-                radius="md"
-                icon={<IconCheck size={16} />}
-                className="mb-4"
-                {...form.getInputProps('confirm_password')}
-              />
+                {error && <Text color="red" size="sm" className="mb-3">{error}</Text>}
 
-              <Checkbox
-                label={
-                  <Text>
-                    I agree to the{' '}
-                    <Anchor href="/terms" className="text-teal-700 hover:underline">terms and conditions</Anchor>
-                  </Text>
-                }
-                {...form.getInputProps('terms', { type: 'checkbox' })}
-                className="mb-6"
-              />
-
-              {error && <Text color="red">{error}</Text>}
-
-              <Button
-                type="submit"
-                size="md"
-                radius="md"
-                fullWidth
-                loading={loading}
-                className="mb-4 !bg-gradient-to-r !from-red-500 !to-orange-500 !text-white !font-semibold !shadow-lg !shadow-red-900/50 !transform hover:scale-103 !transition-all !duration-300 hover:!bg-gradient-to-r hover:!from-orange-500 hover:!to-red-500 
+                <Button
+                  type="submit"
+                  size="md"
+                  radius="md"
+                  fullWidth
+                  loading={loading}
+                  className="mb-4 !bg-gradient-to-r !from-red-500 !to-orange-500 !text-white !font-semibold !shadow-lg !shadow-red-900/50 !transform hover:scale-103 !transition-all !duration-300 hover:!bg-gradient-to-r hover:!from-orange-500 hover:!to-red-500 
     active:!scale-95 active:!shadow-orange-600/50 focus:!outline-none focus:!ring-2 focus:!ring-red-500 focus:!ring-offset-2"
-              >
-                Create Account
-              </Button>
+                >
+                  Create Account
+                </Button>
 
-              <Divider label="Or continue with" labelPosition="center" my="lg" />
+                <Divider label="Or continue with" labelPosition="center" my="lg" />
 
-              <Text className="text-center text-gray-600 mt-6">
-                Already have an account?{' '}
-                <Anchor component={Link} to="/login" className="font-medium text-red-500 hover:text-red-600">
-                  Log in
-                </Anchor>
-              </Text>
-            </form>
+                <Text className="text-center text-gray-600 mt-6">
+                  Already have an account?{' '}
+                  <Anchor component={Link} to="/login" className="font-medium text-red-500 hover:text-red-600">
+                    Log in
+                  </Anchor>
+                </Text>
+              </form>
+            ) : (
+              <div>
+                <Alert icon={<IconAlertCircle size={16} />} title="Check your email!" color="teal" className="mb-6">
+                  We've sent a 6-digit verification code to <strong>{signupData?.email}</strong>
+                </Alert>
+
+                <Text className="mb-4 text-center text-gray-600">Enter the verification code</Text>
+                
+                <div className="flex justify-center mb-6">
+                  <PinInput
+                    length={6}
+                    size="lg"
+                    value={otp}
+                    onChange={setOtp}
+                    type="number"
+                    oneTimeCode
+                  />
+                </div>
+
+                {error && <Text color="red" size="sm" className="mb-3 text-center">{error}</Text>}
+
+                <Button
+                  size="md"
+                  radius="md"
+                  fullWidth
+                  loading={loading}
+                  onClick={handleVerifyOtp}
+                  disabled={otp.length !== 6}
+                  className="mb-4 !bg-gradient-to-r !from-red-500 !to-orange-500 !text-white !font-semibold !shadow-lg !shadow-red-900/50 !transform hover:scale-103 !transition-all !duration-300 hover:!bg-gradient-to-r hover:!from-orange-500 hover:!to-red-500 
+    active:!scale-95 active:!shadow-orange-600/50 focus:!outline-none focus:!ring-2 focus:!ring-red-500 focus:!ring-offset-2"
+                >
+                  Verify & Continue
+                </Button>
+
+                <Text className="text-center text-gray-600 mt-4">
+                  Didn't receive the code?{' '}
+                  <Anchor onClick={() => setStep(1)} className="font-medium text-red-500 hover:text-red-600 cursor-pointer">
+                    Go back
+                  </Anchor>
+                </Text>
+              </div>
+            )}
           </div>
         </div>
       </Container>
