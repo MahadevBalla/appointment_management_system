@@ -149,6 +149,39 @@ class ServiceSerializer(serializers.ModelSerializer):
         validated_data["organiser"] = self.context["request"].user
         return super().create(validated_data)
 
+    def validate_questions_schema(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("questions_schema must be a list")
+
+        allowed_types = {"boolean", "text", "number"}
+        keys = set()
+
+        for q in value:
+            if not isinstance(q, dict):
+                raise serializers.ValidationError("Each question must be an object")
+
+            for field in ("key", "label", "type", "required"):
+                if field not in q:
+                    raise serializers.ValidationError(f"Missing '{field}' in question")
+
+            if not isinstance(q["key"], str):
+                raise serializers.ValidationError("Question key must be a string")
+
+            if q["type"] not in allowed_types:
+                raise serializers.ValidationError(
+                    f"Invalid type '{q['type']}'. Allowed: boolean, text, number"
+                )
+
+            if not isinstance(q["required"], bool):
+                raise serializers.ValidationError("'required' must be a boolean")
+
+            if q["key"] in keys:
+                raise serializers.ValidationError("Duplicate question key found")
+
+            keys.add(q["key"])
+
+        return value
+
 
 class BookingSerializer(serializers.ModelSerializer):
     service_name = serializers.CharField(source="service.name", read_only=True)
