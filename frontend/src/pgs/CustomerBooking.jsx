@@ -89,15 +89,16 @@ const CustomerBooking = () => {
     const bookingData = {
       appointment,
       resource,
-      date: selectedDate,
-      slot: selectedSlot,
+      selectedDate: selectedDate instanceof Date ? selectedDate.toISOString().split('T')[0] : selectedDate,
+      selectedTime: selectedSlot?.time,
       numberOfPeople: (showCapacityInput && manageCapacity) ? numberOfPeople : 1,
     };
     
-    console.log('Booking confirmed:', bookingData);
-    alert('Booking confirmed successfully!');
-    // TODO: Navigate to confirmation page
-    // navigate('/customer/booking-confirmation', { state: { booking: bookingData } });
+    // Save to sessionStorage as backup
+    sessionStorage.setItem('bookingData', JSON.stringify(bookingData));
+    
+    // Navigate to booking details page
+    navigate('/customer/booking-details', { state: bookingData });
   };
 
   const isBookingValid = selectedDate && selectedSlot;

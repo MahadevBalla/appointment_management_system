@@ -19,12 +19,35 @@ const CustomerAppointment = () => {
       name: 'Dental care',
       picture: '/placeholder-dental.jpg',
       type: 'Paid',
+      appointment_type: 'user',
       price: '$50 per session',
       location: "Doctor's office - 123 Medical Center, Downtown",
       introMessage: 'Schedule your visit today and experience expert dental care brought right to your doorstep.',
       description: 'Professional dental care services including cleaning, checkups, and consultations. Our experienced dentists provide comprehensive care for all your dental needs.',
       duration: '45 minutes',
       availability: 'Monday - Friday, 9:00 AM - 5:00 PM',
+      advance_payment_required: true,
+      advance_payment_amount: 500,
+      questions_schema: [
+        {
+          id: 'symptoms',
+          question: 'Symptoms',
+          type: 'textarea',
+          required: true
+        },
+        {
+          id: 'age',
+          question: 'Age',
+          type: 'number',
+          required: true
+        },
+        {
+          id: 'previousTreatment',
+          question: 'Have you had dental treatment before?',
+          type: 'boolean',
+          required: false
+        }
+      ],
       resourceType: 'user',
       resources: [
         { 
@@ -48,12 +71,16 @@ const CustomerAppointment = () => {
       name: 'Tennis court',
       picture: '/placeholder-tennis.jpg',
       type: 'Free',
+      appointment_type: 'resource',
       price: 'Free',
       location: 'Tennis court - Sports Complex, West Wing',
       introMessage: 'Book your tennis court session and enjoy world-class facilities.',
       description: 'State-of-the-art tennis courts with professional-grade surfaces. Perfect for both casual players and serious athletes. Equipment rental available on-site.',
       duration: '60 minutes',
       availability: 'Daily, 6:00 AM - 10:00 PM',
+      advance_payment_required: false,
+      advance_payment_amount: 0,
+      questions_schema: [],
       resourceType: 'resource',
       resources: [
         { 

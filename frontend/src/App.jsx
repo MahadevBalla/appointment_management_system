@@ -20,6 +20,7 @@ const Reporting = lazy(() => import("./pgs/Reporting"));
 const CustomerHome = lazy(() => import("./pgs/CustomerHome"));
 const CustomerAppointment = lazy(() => import("./pgs/CustomerAppointment"));
 const CustomerBooking = lazy(() => import("./pgs/CustomerBooking"));
+const BookingDetails = lazy(() => import("./pgs/BookingDetails"));
 const AIChatAssistant = lazy(() => import("./components/AIChatAssistant"));
 
 
@@ -100,6 +101,14 @@ const App = () => {
                 element={
                   <PrivateRoute>
                     <CustomerBooking />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/customer/booking-details"
+                element={
+                  <PrivateRoute>
+                    <BookingDetails />
                   </PrivateRoute>
                 }
               />

@@ -20,18 +20,45 @@ const CustomerHome = () => {
       name: 'Dental care',
       picture: '/placeholder-dental.jpg',
       type: 'Paid',
+      appointment_type: 'user',
       users: ['A1', 'A2'],
       location: "Doctor's office",
       introMessage: 'Schedule your visit today and experience expert dental care brought right to your doorstep.',
+      advance_payment_required: true,
+      advance_payment_amount: 500,
+      questions_schema: [
+        {
+          id: 'symptoms',
+          question: 'Symptoms',
+          type: 'textarea',
+          required: true
+        },
+        {
+          id: 'age',
+          question: 'Age',
+          type: 'number',
+          required: true
+        },
+        {
+          id: 'previousTreatment',
+          question: 'Have you had dental treatment before?',
+          type: 'boolean',
+          required: false
+        }
+      ]
     },
     {
       id: 2,
       name: 'Tennis court',
       picture: '/placeholder-tennis.jpg',
       type: 'Free',
+      appointment_type: 'resource',
       resources: ['R1', 'R2'],
       location: 'Tennis court',
       introMessage: 'Book your tennis court session and enjoy world-class facilities.',
+      advance_payment_required: false,
+      advance_payment_amount: 0,
+      questions_schema: []
     },
   ]);
 
