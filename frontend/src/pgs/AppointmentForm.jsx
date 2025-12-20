@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Alert } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,13 +38,25 @@ import {
   BarChart3,
   Calendar,
   Plus,
-  Trash2
+  Trash2,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  Mail,
+  Phone,
+  Clock,
+  User
 } from 'lucide-react';
+import { serviceAPI } from '../services/api';
 
 const AppointmentForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
+
+  // Loading and error states
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -106,30 +119,13 @@ const AppointmentForm = () => {
     mandatory: false,
   });
 
-  // Dummy questions data
-  const [questions, setQuestions] = useState([
-    {
-      id: 1,
-      question: 'Name',
-      answerType: 'Single line text',
-      answer: 'Vipin jindal',
-      mandatory: false,
-    },
-    {
-      id: 2,
-      question: 'Phone',
-      answerType: 'Phone number',
-      answer: '9874563210',
-      mandatory: false,
-    },
-    {
-      id: 3,
-      question: 'Symptoms',
-      answerType: 'Single line text',
-      answer: 'Cough',
-      mandatory: false,
-    },
-  ]);
+  // Questions data - will be populated from API
+  const [questions, setQuestions] = useState([]);
+
+  // Slots data - will be populated from API
+  const [slots, setSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [expandedBookings, setExpandedBookings] = useState({});
 
   // Dummy schedule data
   const [schedule, setSchedule] = useState([
@@ -146,6 +142,122 @@ const AppointmentForm = () => {
   ]);
 
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+  // Fetch service data when editing
+  useEffect(() => {
+    if (isEdit && id) {
+      fetchServiceData();
+    }
+  }, [isEdit, id]);
+
+  // Fetch slots when switching to schedule tab in edit mode
+  useEffect(() => {
+    if (isEdit && id && activeTab === 'schedule') {
+      fetchSlots();
+    }
+  }, [isEdit, id, activeTab]);
+
+  const fetchSlots = async () => {
+    try {
+      setLoadingSlots(true);
+      const response = await serviceAPI.getServiceSlots(id);
+      setSlots(response.data || []);
+    } catch (error) {
+      console.error('Error fetching slots:', error);
+      // If admin endpoint fails (user might not be admin), just show empty
+      setSlots([]);
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
+  const fetchServiceData = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      const response = await serviceAPI.getService(id);
+      const service = response.data;
+
+      // Populate form data
+      setFormData({
+        title: service.name || '',
+        duration: formatDuration(service.duration_minutes) || '00:30',
+        location: service.description || "Doctor's Office",
+        bookBy: 'user',
+        assignment: service.auto_assign_resource ? 'automatically' : 'manually',
+        manageCapacity: true,
+        capacity: service.capacity_per_slot || 1,
+      });
+
+      // Populate options data
+      setOptionsData({
+        manualConfirmation: service.manual_confirmation || false,
+        capacityPercentage: 50,
+        paidBooking: service.advance_payment_required || false,
+        bookingFees: parseFloat(service.price) || 0,
+        createSlotHours: 0.5,
+        cancellationHours: 1,
+      });
+
+      // Convert questions_schema to questions format
+      if (service.questions_schema && Array.isArray(service.questions_schema)) {
+        const convertedQuestions = service.questions_schema.map((q, index) => ({
+          id: index + 1,
+          question: q.label,
+          answerType: mapBackendTypeToFrontend(q.type),
+          answer: '',
+          mandatory: q.required,
+          key: q.key,
+        }));
+        setQuestions(convertedQuestions);
+      }
+
+    } catch (error) {
+      console.error('Error fetching service:', error);
+      setError('Failed to load service data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper to convert backend duration (minutes) to HH:MM format
+  const formatDuration = (minutes) => {
+    if (!minutes) return '00:30';
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+  };
+
+  // Helper to parse HH:MM to minutes
+  const parseDuration = (timeString) => {
+    const [hours, minutes] = timeString.split(':').map(Number);
+    return (hours * 60) + minutes;
+  };
+
+  // Map backend question types to frontend answer types
+  const mapBackendTypeToFrontend = (backendType) => {
+    const typeMap = {
+      'text': 'Single line text',
+      'number': 'Number',
+      'boolean': 'Checkbox',
+    };
+    return typeMap[backendType] || 'Single line text';
+  };
+
+  // Map frontend answer types to backend question types
+  const mapFrontendTypeToBackend = (frontendType) => {
+    const typeMap = {
+      'Single line text': 'text',
+      'Multi line text': 'text',
+      'Phone number': 'text',
+      'Email': 'text',
+      'Number': 'number',
+      'Checkbox': 'boolean',
+      'Radio button': 'boolean',
+    };
+    return typeMap[frontendType] || 'text';
+  };
 
   const handleAddScheduleLine = () => {
     const newId = schedule.length > 0 ? Math.max(...schedule.map(s => s.id)) + 1 : 1;
@@ -171,27 +283,64 @@ const AppointmentForm = () => {
     setDialogOpen(true);
   };
 
-  const handleSaveQuestion = () => {
+  const handleSaveQuestion = async () => {
     if (!newQuestion.question.trim()) {
       return; // Don't save if question is empty
     }
+    
     const newId = questions.length > 0 ? Math.max(...questions.map(q => q.id)) + 1 : 1;
-    setQuestions([
-      ...questions,
-      {
-        id: newId,
-        question: newQuestion.question,
-        answerType: newQuestion.answerType,
-        answer: '',
-        mandatory: newQuestion.mandatory,
-      },
-    ]);
-    setDialogOpen(false);
-    setNewQuestion({
-      question: '',
-      answerType: 'Single line text',
-      mandatory: false,
-    });
+    
+    // Generate key from question text (lowercase, underscored)
+    const key = newQuestion.question.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    
+    const questionData = {
+      id: newId,
+      question: newQuestion.question,
+      answerType: newQuestion.answerType,
+      answer: '',
+      mandatory: newQuestion.mandatory,
+      key: key,
+    };
+
+    // If in edit mode, save to backend immediately
+    if (isEdit && id) {
+      try {
+        setLoading(true);
+        setError('');
+        
+        const backendQuestion = {
+          key: key,
+          label: newQuestion.question,
+          type: mapFrontendTypeToBackend(newQuestion.answerType),
+          required: newQuestion.mandatory,
+        };
+
+        await serviceAPI.addQuestion(id, backendQuestion);
+        
+        // Add to local state after successful API call
+        setQuestions([...questions, questionData]);
+        setDialogOpen(false);
+        setNewQuestion({
+          question: '',
+          answerType: 'Single line text',
+          mandatory: false,
+        });
+      } catch (error) {
+        console.error('Error adding question:', error);
+        setError(error.response?.data?.error || 'Failed to add question. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // For new services, just add to local state
+      setQuestions([...questions, questionData]);
+      setDialogOpen(false);
+      setNewQuestion({
+        question: '',
+        answerType: 'Single line text',
+        mandatory: false,
+      });
+    }
   };
 
   const handleDeleteQuestion = (id) => {
@@ -211,6 +360,64 @@ const AppointmentForm = () => {
       setSelectedUsers([...selectedUsers, user]);
     }
   };
+
+  const toggleBookingDetails = (bookingId) => {
+    setExpandedBookings(prev => ({
+      ...prev,
+      [bookingId]: !prev[bookingId]
+    }));
+  };
+
+  // Save handler to create or update service
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      // Convert questions to backend questions_schema format
+      const questions_schema = questions.map(q => ({
+        key: q.key || q.question.toLowerCase().replace(/[^a-z0-9]+/g, '_'),
+        label: q.question,
+        type: mapFrontendTypeToBackend(q.answerType),
+        required: q.mandatory,
+      }));
+
+      const serviceData = {
+        name: formData.title,
+        duration_minutes: parseDuration(formData.duration),
+        description: formData.location,
+        capacity_per_slot: formData.capacity,
+        auto_assign_resource: formData.assignment === 'automatically',
+        manual_confirmation: optionsData.manualConfirmation,
+        advance_payment_required: optionsData.paidBooking,
+        price: optionsData.bookingFees.toString(),
+        questions_schema: questions_schema,
+        is_published: true,
+      };
+
+      if (isEdit) {
+        await serviceAPI.updateService(id, serviceData);
+      } else {
+        await serviceAPI.createService(serviceData);
+      }
+
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Error saving service:', error);
+      setError(error.response?.data?.error || 'Failed to save service. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Show loading state
+  if (loading && isEdit) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading service data...</div>
+      </div>
+    );
+  }
 
   // Render appropriate input based on answer type
   const renderAnswerInput = (question) => {
@@ -394,6 +601,19 @@ const AppointmentForm = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Error Alert */}
+        {error && (
+          <Alert 
+            icon={<AlertCircle size={16} />} 
+            color="red" 
+            mb="md"
+            onClose={() => setError('')} 
+            withCloseButton
+          >
+            {error}
+          </Alert>
+        )}
+
         {/* Action Buttons */}
         <div className="mb-6 flex items-center justify-end gap-3">
           <Button
@@ -413,11 +633,12 @@ const AppointmentForm = () => {
             Preview
           </Button>
           <Button
-            onClick={() => {/* Publish functionality */}}
+            onClick={handleSave}
+            disabled={loading}
             className="flex items-center gap-2"
           >
             <FileText className="h-4 w-4" />
-            Publish
+            {loading ? 'Saving...' : (isEdit ? 'Update' : 'Publish')}
           </Button>
         </div>
 
@@ -595,71 +816,229 @@ const AppointmentForm = () => {
             <div className="p-6">
               <TabsContent value="schedule" className="mt-0">
                 <div className="space-y-4">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[200px]">Every</TableHead>
-                        <TableHead>From</TableHead>
-                        <TableHead>To</TableHead>
-                        <TableHead className="w-[100px]">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {schedule.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell>
-                            <select
-                              value={item.day}
-                              onChange={(e) => handleUpdateSchedule(item.id, 'day', e.target.value)}
-                              className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"
-                            >
-                              {daysOfWeek.map((day) => (
-                                <option key={day} value={day}>{day}</option>
-                              ))}
-                            </select>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="time"
-                                value={item.from}
-                                onChange={(e) => handleUpdateSchedule(item.id, 'from', e.target.value)}
-                                className="w-32"
-                              />
+                  {isEdit ? (
+                    // Show slots with bookings for existing services
+                    loadingSlots ? (
+                      <div className="text-center py-8 text-gray-500">Loading slots...</div>
+                    ) : slots.length > 0 ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-semibold">Service Slots & Bookings</h3>
+                          <Button variant="outline" size="sm" onClick={fetchSlots}>
+                            Refresh
+                          </Button>
+                        </div>
+                        {slots.map((slot) => (
+                          <div key={slot.id} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-3">
+                                  <Calendar className="h-4 w-4 text-gray-500" />
+                                  <span className="font-medium">
+                                    {new Date(slot.start_datetime).toLocaleString('en-US', {
+                                      weekday: 'short',
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </span>
+                                  <span className="text-gray-400">→</span>
+                                  <span className="text-gray-600">
+                                    {new Date(slot.end_datetime).toLocaleTimeString('en-US', {
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-gray-600">
+                                  Capacity: {slot.booked_count} / {slot.capacity}
+                                </span>
+                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                  slot.booked_count >= slot.capacity
+                                    ? 'bg-red-100 text-red-700'
+                                    : slot.booked_count > 0
+                                    ? 'bg-yellow-100 text-yellow-700'
+                                    : 'bg-green-100 text-green-700'
+                                }`}>
+                                  {slot.booked_count >= slot.capacity ? 'Full' : slot.booked_count > 0 ? 'Partial' : 'Available'}
+                                </span>
+                              </div>
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="time"
-                                value={item.to}
-                                onChange={(e) => handleUpdateSchedule(item.id, 'to', e.target.value)}
-                                className="w-32"
-                              />
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteSchedule(item.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                  <Button
-                    variant="ghost"
-                    onClick={handleAddScheduleLine}
-                    className="text-teal-600 hover:text-teal-700"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add a Line
-                  </Button>
+                            
+                            {slot.bookings && slot.bookings.length > 0 && (
+                              <div className="mt-3 border-t border-gray-200 pt-3">
+                                <h4 className="text-sm font-semibold text-gray-700 mb-2">Bookings ({slot.bookings.length})</h4>
+                                <div className="space-y-2">
+                                  {slot.bookings.map((booking) => (
+                                    <div key={booking.booking_id} className="border border-gray-200 rounded-lg overflow-hidden">
+                                      <div 
+                                        className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
+                                        onClick={() => toggleBookingDetails(booking.booking_id)}
+                                      >
+                                        <div className="flex items-center gap-4 flex-1">
+                                          <div className="flex items-center gap-2">
+                                            <User className="h-4 w-4 text-gray-500" />
+                                            <span className="font-medium">{booking.customer_name}</span>
+                                          </div>
+                                          <span className="text-sm text-gray-600">Qty: {booking.quantity}</span>
+                                          <span className={`px-2 py-1 text-xs rounded-full ${
+                                            booking.status === 'confirmed'
+                                              ? 'bg-green-100 text-green-700'
+                                              : booking.status === 'pending'
+                                              ? 'bg-yellow-100 text-yellow-700'
+                                              : booking.status === 'cancelled'
+                                              ? 'bg-red-100 text-red-700'
+                                              : 'bg-blue-100 text-blue-700'
+                                          }`}>
+                                            {booking.status}
+                                          </span>
+                                        </div>
+                                        {expandedBookings[booking.booking_id] ? (
+                                          <ChevronUp className="h-4 w-4 text-gray-500" />
+                                        ) : (
+                                          <ChevronDown className="h-4 w-4 text-gray-500" />
+                                        )}
+                                      </div>
+                                      
+                                      {expandedBookings[booking.booking_id] && (
+                                        <div className="p-4 bg-white border-t border-gray-200 space-y-3">
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            <div className="flex items-center gap-2 text-sm">
+                                              <Mail className="h-4 w-4 text-gray-400" />
+                                              <span className="text-gray-600">Email:</span>
+                                              <span className="font-medium">{booking.customer_email}</span>
+                                            </div>
+                                            {booking.customer_phone && (
+                                              <div className="flex items-center gap-2 text-sm">
+                                                <Phone className="h-4 w-4 text-gray-400" />
+                                                <span className="text-gray-600">Phone:</span>
+                                                <span className="font-medium">{booking.customer_phone}</span>
+                                              </div>
+                                            )}
+                                            <div className="flex items-center gap-2 text-sm">
+                                              <Clock className="h-4 w-4 text-gray-400" />
+                                              <span className="text-gray-600">Booked:</span>
+                                              <span className="font-medium">
+                                                {new Date(booking.created_at).toLocaleString('en-US', {
+                                                  month: 'short',
+                                                  day: 'numeric',
+                                                  year: 'numeric',
+                                                  hour: '2-digit',
+                                                  minute: '2-digit'
+                                                })}
+                                              </span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-sm">
+                                              <FileText className="h-4 w-4 text-gray-400" />
+                                              <span className="text-gray-600">ID:</span>
+                                              <span className="font-mono text-xs text-gray-500">
+                                                {booking.booking_id.substring(0, 13)}...
+                                              </span>
+                                            </div>
+                                          </div>
+                                          
+                                          {booking.answers && Object.keys(booking.answers).length > 0 && (
+                                            <div className="pt-3 border-t border-gray-100">
+                                              <h5 className="text-sm font-semibold text-gray-700 mb-2">Customer Responses</h5>
+                                              <div className="space-y-2">
+                                                {Object.entries(booking.answers).map(([key, value]) => (
+                                                  <div key={key} className="text-sm">
+                                                    <span className="text-gray-600 font-medium">{key}:</span>
+                                                    <span className="ml-2 text-gray-800">{String(value)}</span>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        No slots found for this service.
+                      </div>
+                    )
+                  ) : (
+                    // Show schedule editor for new services
+                    <>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[200px]">Every</TableHead>
+                            <TableHead>From</TableHead>
+                            <TableHead>To</TableHead>
+                            <TableHead className="w-[100px]">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {schedule.map((item) => (
+                            <TableRow key={item.id}>
+                              <TableCell>
+                                <select
+                                  value={item.day}
+                                  onChange={(e) => handleUpdateSchedule(item.id, 'day', e.target.value)}
+                                  className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+                                >
+                                  {daysOfWeek.map((day) => (
+                                    <option key={day} value={day}>{day}</option>
+                                  ))}
+                                </select>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    type="time"
+                                    value={item.from}
+                                    onChange={(e) => handleUpdateSchedule(item.id, 'from', e.target.value)}
+                                    className="w-32"
+                                  />
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    type="time"
+                                    value={item.to}
+                                    onChange={(e) => handleUpdateSchedule(item.id, 'to', e.target.value)}
+                                    className="w-32"
+                                  />
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteSchedule(item.id)}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      <Button
+                        variant="ghost"
+                        onClick={handleAddScheduleLine}
+                        className="text-teal-600 hover:text-teal-700"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add a Line
+                      </Button>
+                    </>
+                  )}
                 </div>
               </TabsContent>
 

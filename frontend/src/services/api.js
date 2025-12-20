@@ -100,6 +100,8 @@ export const serviceAPI = {
   createService: (serviceData) => api.post('/services/', serviceData),
   updateService: (id, serviceData) => api.patch(`/services/${id}/`, serviceData),
   deleteService: (id) => api.delete(`/services/${id}/`),
+  addQuestion: (id, questionData) => api.post(`/services/${id}/questions/`, questionData),
+  getServiceSlots: (serviceId) => api.get(`/admin/services/${serviceId}/slots/`),
 };
 
 // Booking API
@@ -109,6 +111,15 @@ export const bookingAPI = {
   createBooking: (bookingData) => api.post('/bookings/', bookingData),
   updateBooking: (id, bookingData) => api.patch(`/bookings/${id}/`, bookingData),
   deleteBooking: (id) => api.delete(`/bookings/${id}/`),
+};
+
+// Resource API
+export const resourceAPI = {
+  getResources: () => api.get('/resources/'),
+  getResource: (id) => api.get(`/resources/${id}/`),
+  createResource: (resourceData) => api.post('/resources/', resourceData),
+  updateResource: (id, resourceData) => api.patch(`/resources/${id}/`, resourceData),
+  deleteResource: (id) => api.delete(`/resources/${id}/`),
 };
 
 export default api;

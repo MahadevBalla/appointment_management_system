@@ -348,8 +348,12 @@ class AdminSlotBookingSerializer(serializers.ModelSerializer):
                 "booking_id": str(b.id),
                 "customer_id": str(b.customer.id),
                 "customer_name": b.customer.full_name,
+                "customer_email": b.customer.email,
+                "customer_phone": b.customer.phone_no or "",
                 "quantity": b.quantity,
                 "status": b.status,
+                "created_at": b.created_at.isoformat(),
+                "answers": b.answers,
             }
             for b in qs
         ]

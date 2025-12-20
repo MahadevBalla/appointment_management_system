@@ -1,228 +1,391 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { Alert } from '@mantine/core';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
-  Settings as SettingsIcon, 
-  BarChart3,
-  Calendar,
   Plus,
-  ChevronDown
+  Edit,
+  Trash2,
+  AlertCircle,
+  Check,
+  Search,
+  ArrowLeft
 } from 'lucide-react';
+import { resourceAPI } from '../services/api';
 
 const Resources = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useSelector((state) => state.auth);
+  
+  const [resources, setResources] = useState([]);
+  const [filteredResources, setFilteredResources] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  
+  // Form dialog state
+  const [formDialog, setFormDialog] = useState({ open: false, mode: 'create', resource: null });
+  const [formData, setFormData] = useState({
+    name: '',
+    type: 'user',
+    service: '',
+    linked_user: ''
+  });
+  const [saving, setSaving] = useState(false);
+  
+  // Delete dialog state
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, resource: null });
+  const [deleting, setDeleting] = useState(false);
 
-  // Resources state
-  const [resources, setResources] = useState([
-    {
-      id: 1,
-      name: 'Court 1',
-      capacity: 2,
-      linkedResources: ['Court 2', 'Court 3', 'Court 4'],
-    },
-  ]);
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    fetchResources();
+  }, [isAuthenticated, navigate]);
 
-  const [currentResource, setCurrentResource] = useState(resources[0]);
-  const [availableResources, setAvailableResources] = useState([
-    'Court 2',
-    'Court 3', 
-    'Court 4',
-    'Court 5',
-    'Court 6'
-  ]);
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredResources(resources);
+    } else {
+      const filtered = resources.filter((resource) =>
+        resource.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        resource.type.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredResources(filtered);
+    }
+  }, [searchQuery, resources]);
 
-  const handleAddLinkedResource = (resource) => {
-    if (!currentResource.linkedResources.includes(resource)) {
-      setCurrentResource({
-        ...currentResource,
-        linkedResources: [...currentResource.linkedResources, resource]
-      });
+  const fetchResources = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const response = await resourceAPI.getResources();
+      let resourcesList = Array.isArray(response.data) 
+        ? response.data 
+        : (response.data?.results || response.data || []);
+      
+      setResources(resourcesList);
+      setFilteredResources(resourcesList);
+    } catch (error) {
+      console.error('Error fetching resources:', error);
+      setError('Failed to load resources. Please try again.');
+      setResources([]);
+      setFilteredResources([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRemoveLinkedResource = (resource) => {
-    setCurrentResource({
-      ...currentResource,
-      linkedResources: currentResource.linkedResources.filter(r => r !== resource)
+  const handleCreateClick = () => {
+    setFormData({
+      name: '',
+      type: 'user',
+      service: '',
+      linked_user: ''
     });
+    setFormDialog({ open: true, mode: 'create', resource: null });
   };
+
+  const handleEditClick = (resource) => {
+    setFormData({
+      name: resource.name || '',
+      type: resource.type || 'user',
+      service: resource.service || '',
+      linked_user: resource.linked_user || ''
+    });
+    setFormDialog({ open: true, mode: 'edit', resource });
+  };
+
+  const handleDeleteClick = (resource) => {
+    setDeleteDialog({ open: true, resource });
+  };
+
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError('');
+
+    try {
+      if (formDialog.mode === 'create') {
+        await resourceAPI.createResource(formData);
+        setSuccess('Resource created successfully!');
+      } else {
+        await resourceAPI.updateResource(formDialog.resource.id, formData);
+        setSuccess('Resource updated successfully!');
+      }
+
+      setTimeout(() => setSuccess(''), 3000);
+      setFormDialog({ open: false, mode: 'create', resource: null });
+      await fetchResources();
+    } catch (error) {
+      console.error('Error saving resource:', error);
+      setError(error.response?.data?.error || error.response?.data?.detail || 'Failed to save resource. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteDialog.resource) return;
+
+    try {
+      setDeleting(true);
+      setError('');
+      
+      await resourceAPI.deleteResource(deleteDialog.resource.id);
+      
+      setSuccess(`Resource "${deleteDialog.resource.name}" deleted successfully!`);
+      setTimeout(() => setSuccess(''), 3000);
+      
+      await fetchResources();
+      setDeleteDialog({ open: false, resource: null });
+    } catch (error) {
+      console.error('Error deleting resource:', error);
+      setError(error.response?.data?.error || 'Failed to delete resource. Please try again.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const getTypeLabel = (type) => {
+    return type === 'user' ? 'Staff/User' : 'Asset/Room';
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading resources...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <img src="/logo-white.png" alt="Logo" className="h-8 w-8" />
-                <span className="text-xl font-bold text-teal-600">NeoDermaScan</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/reporting')}
-                className="flex items-center gap-2"
-              >
-                <BarChart3 className="h-4 w-4" />
-                Reporting
-              </Button>
-              
-              {/* Settings Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <SettingsIcon className="h-4 w-4" />
-                    Settings
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => navigate('/settings/users')}>
-                    Users
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/settings/resources')}>
-                    Resources
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/meetings')}
-                className="flex items-center gap-2"
-              >
-                <Calendar className="h-4 w-4" />
-                Meetings
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Success/Error Messages */}
+        {error && (
+          <Alert 
+            icon={<AlertCircle size={16} />} 
+            color="red" 
+            mb="md" 
+            onClose={() => setError('')} 
+            withCloseButton
+          >
+            {error}
+          </Alert>
+        )}
+        
+        {success && (
+          <Alert 
+            icon={<Check size={16} />} 
+            color="green" 
+            mb="md" 
+            onClose={() => setSuccess('')} 
+            withCloseButton
+          >
+            {success}
+          </Alert>
+        )}
+
         {/* Page Header */}
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Resource</h1>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Dashboard
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Resources</h1>
+              <p className="text-sm text-gray-500 mt-1">Manage staff and assets for your services</p>
+            </div>
+          </div>
           <Button
-            variant="outline"
-            onClick={() => {/* Add new resource */}}
+            onClick={handleCreateClick}
             className="flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
-            New
+            New Resource
           </Button>
         </div>
 
-        {/* Resource Form */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-          <div className="space-y-6">
-            {/* Name Field */}
-            <div className="space-y-2">
-              <Label htmlFor="resource-name" className="text-sm font-semibold text-gray-700">
-                Name
-              </Label>
-              <Input
-                id="resource-name"
-                value={currentResource.name}
-                onChange={(e) => setCurrentResource({ ...currentResource, name: e.target.value })}
-                placeholder="Enter resource name"
-                className="w-full"
-              />
-            </div>
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search resources..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
 
-            {/* Capacity Field */}
-            <div className="space-y-2">
-              <Label htmlFor="resource-capacity" className="text-sm font-semibold text-gray-700">
-                Capacity
-              </Label>
-              <Input
-                id="resource-capacity"
-                type="number"
-                value={currentResource.capacity}
-                onChange={(e) => setCurrentResource({ ...currentResource, capacity: parseInt(e.target.value) || 0 })}
-                placeholder="Enter capacity"
-                className="w-32"
-                min="0"
-              />
-            </div>
-
-            {/* Linked Resources */}
-            <div className="space-y-3">
-              <Label className="text-sm font-semibold text-gray-700">
-                Linked resources
-              </Label>
-              
-              {/* Dropdown to add linked resources */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full max-w-xs justify-between"
-                  >
-                    <span className="text-gray-600">Select resources to link...</span>
-                    <ChevronDown className="h-4 w-4 ml-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-64">
-                  {availableResources
-                    .filter(r => !currentResource.linkedResources.includes(r))
-                    .map((resource) => (
-                      <DropdownMenuItem 
-                        key={resource}
-                        onClick={() => handleAddLinkedResource(resource)}
-                      >
-                        {resource}
-                      </DropdownMenuItem>
-                    ))}
-                  {availableResources.filter(r => !currentResource.linkedResources.includes(r)).length === 0 && (
-                    <div className="px-2 py-1.5 text-sm text-gray-500">
-                      No resources available
-                    </div>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Display linked resources */}
-              {currentResource.linkedResources.length > 0 && (
-                <div className="space-y-2 mt-3">
-                  {currentResource.linkedResources.map((resource) => (
-                    <div 
-                      key={resource}
-                      className="flex items-center justify-between px-3 py-2 bg-gray-50 border border-gray-200 rounded-md"
-                    >
-                      <span className="text-sm text-gray-700">{resource}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveLinkedResource(resource)}
-                        className="h-6 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+        {/* Resources Table */}
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[300px]">Resource Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Service</TableHead>
+                <TableHead>Linked User</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredResources.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                    {searchQuery 
+                      ? 'No resources found matching your search.'
+                      : 'No resources found. Create your first resource by clicking "New Resource".'}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredResources.map((resource) => (
+                  <TableRow key={resource.id}>
+                    <TableCell className="font-medium">{resource.name}</TableCell>
+                    <TableCell>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {getTypeLabel(resource.type)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-600">
+                      {resource.service_name || resource.service || 'N/A'}
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-600">
+                      {resource.linked_user_name || resource.linked_user || '-'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditClick(resource)}
+                          className="flex items-center gap-1"
+                          title="Edit resource"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteClick(resource)}
+                          className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          title="Delete resource"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
+            </TableBody>
+          </Table>
+        </div>
+      </main>
+
+      {/* Create/Edit Resource Dialog */}
+      <Dialog open={formDialog.open} onOpenChange={(open) => !saving && setFormDialog({ ...formDialog, open })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {formDialog.mode === 'create' ? 'Create New Resource' : 'Edit Resource'}
+            </DialogTitle>
+            <DialogDescription>
+              {formDialog.mode === 'create' 
+                ? 'Add a new staff member or asset to your resources.'
+                : 'Update the resource information.'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleFormSubmit}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Enter resource name"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="type">Type *</Label>
+                <select
+                  id="type"
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  required
+                >
+                  <option value="user">Staff/User</option>
+                  <option value="asset">Asset/Room</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="service">Service ID</Label>
+                <Input
+                  id="service"
+                  value={formData.service}
+                  onChange={(e) => setFormData({ ...formData, service: e.target.value })}
+                  placeholder="Enter service UUID"
+                />
+                <p className="text-xs text-gray-500">
+                  Optional: Link this resource to a specific service
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="linked_user">Linked User ID</Label>
+                <Input
+                  id="linked_user"
+                  value={formData.linked_user}
+                  onChange={(e) => setFormData({ ...formData, linked_user: e.target.value })}
+                  placeholder="Enter user UUID"
+                />
+                <p className="text-xs text-gray-500">
+                  Optional: For staff resources, link to a user account
+                </p>
+              </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+            <DialogFooter>
               <Button
                 onClick={() => navigate('/admindashboard')}
                 className="bg-teal-600 text-white hover:bg-teal-700"
@@ -235,10 +398,42 @@ const Resources = () => {
               >
                 Cancel
               </Button>
-            </div>
-          </div>
-        </div>
-      </main>
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Saving...' : (formDialog.mode === 'create' ? 'Create' : 'Update')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialog.open} onOpenChange={(open) => !deleting && setDeleteDialog({ open, resource: deleteDialog.resource })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Resource</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{deleteDialog.resource?.name}"? 
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialog({ open: false, resource: null })}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
