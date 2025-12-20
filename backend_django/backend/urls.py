@@ -17,6 +17,9 @@ from .views import (
     ChangePasswordView,
     CreatePaymentOrderView,
     VerifyPaymentView,
+    AdminUserListView,
+    AdminBookingListView,
+    AdminServiceSlotsView,
 )
 
 router = DefaultRouter()
@@ -40,5 +43,8 @@ urlpatterns = [
     path("dashboard/stats/", DashboardStatsView.as_view()),
     path("payments/create-order/", CreatePaymentOrderView.as_view()),
     path("payments/verify/", VerifyPaymentView.as_view()),
+    path("admin/users/", AdminUserListView.as_view()),
+    path("admin/bookings/", AdminBookingListView.as_view()),
+    path("admin/services/<int:service_id>/slots/", AdminServiceSlotsView.as_view()),
     path("", include(router.urls)),
 ]

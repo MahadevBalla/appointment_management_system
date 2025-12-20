@@ -11,6 +11,7 @@ from rest_framework.decorators import action
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
+from rest_framework.generics import ListAPIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.token_blacklist.models import (
     OutstandingToken,
@@ -28,6 +29,7 @@ from .serializers import (
     VerifyOtpSerializer,
     PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer,
+    AdminSlotBookingSerializer,
 )
 from .utils import send_otp, get_razorpay_client
 from .async_tasks.tasks import booking_created_task, booking_cancelled_task
@@ -285,6 +287,30 @@ class IsOrganiserOrAdmin(permissions.BasePermission):
             "admin",
         ]
 
+class IsAdmin(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return (
+            request.user.is_authenticated
+            and request.user.role == "admin"
+        )
+
+class AdminUserListView(generics.ListAPIView):
+    permission_classes = [IsAdmin]
+    serializer_class = UserSerializer
+    queryset = User.objects.all().order_by("-created_at")
+
+
+class AdminBookingListView(generics.ListAPIView):
+    permission_classes = [IsAdmin]
+    serializer_class = BookingSerializer
+    queryset = Booking.objects.select_related(
+        "customer", "service", "slot"
+    ).all().order_by("-created_at")
+
+# class AdminPaymentListView(generics.ListAPIView):
+#     permission_classes = [IsAdmin]
+#     serializer_class = PaymentSerializer
+#     queryset = Payment.objects.select_related("booking").all()
 
 class ServiceViewSet(viewsets.ModelViewSet):
     serializer_class = ServiceSerializer
@@ -337,6 +363,17 @@ class ServiceViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_201_CREATED,
             )
 
+class AdminServiceSlotsView(ListAPIView):
+    permission_classes = [IsAdmin]
+    serializer_class = AdminSlotBookingSerializer
+
+    def get_queryset(self):
+        return (
+            Slot.objects
+            .filter(service_id=self.kwargs["service_id"])
+            .prefetch_related("booking_set__customer")
+            .order_by("start_datetime")
+        )
 
 class ResourceViewSet(viewsets.ModelViewSet):
     serializer_class = ResourceSerializer

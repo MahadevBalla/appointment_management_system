@@ -22,7 +22,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write("Seeding demo data...")
 
-        # CLEAN EXISTING DATA
+        # CLEAN EXISTING DATA (order matters)
         Notification.objects.all().delete()
         Payment.objects.all().delete()
         Booking.objects.all().delete()
@@ -79,7 +79,7 @@ class Command(BaseCommand):
             user.save()
             customers.append(user)
 
-        # SERVICE
+        # SERVICE (questions_schema FIXED)
         service = Service.objects.create(
             organiser=organiser,
             name="Doctor Consultation",
@@ -92,8 +92,18 @@ class Command(BaseCommand):
             manual_confirmation=False,
             auto_assign_resource=True,
             questions_schema=[
-                {"key": "problem", "label": "Describe your problem"},
-                {"key": "age", "label": "Age"},
+                {
+                    "key": "problem",
+                    "label": "Describe your problem",
+                    "type": "text",
+                    "required": True,
+                },
+                {
+                    "key": "age",
+                    "label": "Age",
+                    "type": "number",
+                    "required": True,
+                },
             ],
             is_published=True,
         )
@@ -119,8 +129,8 @@ class Command(BaseCommand):
 
         # SLOTS (next 3 days)
         now = timezone.localtime()
-
         slots = []
+
         for day_offset in range(1, 4):
             date = now.date() + datetime.timedelta(days=day_offset)
             day_start = timezone.make_aware(
@@ -139,7 +149,7 @@ class Command(BaseCommand):
                 )
                 slots.append(slot)
 
-        # BOOKINGS + PAYMENTS + NOTIFICATIONS
+        # BOOKINGS + NOTIFICATIONS
         for i, customer in enumerate(customers):
             slot = slots[i]
 
@@ -148,6 +158,7 @@ class Command(BaseCommand):
                 slot=slot,
                 service=service,
                 resource=doctor,
+                quantity=1,
                 status="pending",
                 answers={
                     "problem": "General checkup",
@@ -161,8 +172,8 @@ class Command(BaseCommand):
             Notification.objects.create(
                 user=customer,
                 channel=customer.notification_preference,
-                title="Appointment Confirmed",
-                message=f"Your appointment with {doctor.name} is confirmed.",
+                title="Appointment Created",
+                message=f"Your appointment with {doctor.name} has been created.",
                 is_sent=True,
             )
 

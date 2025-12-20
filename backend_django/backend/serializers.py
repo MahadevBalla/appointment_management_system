@@ -327,6 +327,33 @@ class BookingSerializer(serializers.ModelSerializer):
 
         return booking
 
+class AdminSlotBookingSerializer(serializers.ModelSerializer):
+    bookings = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Slot
+        fields = [
+            "id",
+            "start_datetime",
+            "end_datetime",
+            "capacity",
+            "booked_count",
+            "bookings",
+        ]
+
+    def get_bookings(self, slot):
+        qs = Booking.objects.filter(slot=slot).select_related("customer")
+        return [
+            {
+                "booking_id": str(b.id),
+                "customer_id": str(b.customer.id),
+                "customer_name": b.customer.full_name,
+                "quantity": b.quantity,
+                "status": b.status,
+            }
+            for b in qs
+        ]
+
 
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
