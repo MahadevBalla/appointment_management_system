@@ -5,6 +5,7 @@ from django.core.cache import cache
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import Service, Resource, WorkingHours, Slot, Booking, Notification, OTP
+
 User = get_user_model()
 
 
@@ -185,7 +186,7 @@ class BookingSerializer(serializers.ModelSerializer):
                 answers=validated_data.get("answers", {}),
             )
             slot.booked_count += quantity
-            slot.save(updated_fields=["booked_count"])
+            slot.save(update_fields=["booked_count"])
 
             service = booking.service
 
@@ -193,6 +194,21 @@ class BookingSerializer(serializers.ModelSerializer):
                 booking.status = "confirmed"
                 booking.save(update_fields=["status"])
         return booking
+
+    def cancel_booking(self, booking: Booking, user):
+        if booking.customer != user:
+            raise serializers.ValidationError("Not allowed")
+        if booking.status == "cancelled":
+            raise serializers.ValidationError("Booking already cancelled")
+        if booking.status == "completed":
+            raise serializers.ValidationError("Completed booking, cannot be cancelled")
+        with transaction.atomic():
+            slot = Slot.objects.select_for_update().get(id=booking.slot_id)
+            slot.booked_count = max(0, slot.booked_count - booking.quantity)
+            slot.save(update_fields=["booked_count"])
+            booking.status = "cancelled"
+            booking.save(update_fields=["status"])
+            return booking
 
 
 class NotificationSerializer(serializers.ModelSerializer):
