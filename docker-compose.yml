@@ -5,6 +5,8 @@ services:
     build:
       context: ./backend_django
     container_name: app_backend
+    depends_on:
+      - redis
     env_file:
       - ./backend_django/.env
     ports:
@@ -19,4 +21,9 @@ services:
       - backend
     ports:
       - "5173:80"
+    restart: unless-stopped
+  
+  redis:
+    image: redis:7
+    container_name: app_redis
     restart: unless-stopped

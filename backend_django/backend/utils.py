@@ -1,11 +1,13 @@
-import os
+import requests
+import random
+from datetime import timedelta
 from math import asin, cos, radians, sin, sqrt
 from django.utils import timezone
-
-import requests
 from django.conf import settings
 from django.core.mail import send_mail
 from django.core.files.storage import default_storage
+from django.core.cache import cache
+from .models import OTP
 
 # Twilio
 TWILIO_ACCOUNT_SID = settings.TWILIO_ACCOUNT_SID
@@ -15,9 +17,10 @@ TWILIO_WHATSAPP_NUMBER = settings.TWILIO_WHATSAPP_NUMBER
 
 GOOGLE_API_KEY = getattr(settings, "GOOGLE_MAPS_API_KEY", None)
 
-
-
-
+OTP_EXPIRY_MAP = {
+    "signup": 5,
+    "password_reset": 1,
+}
 
 def get_nearby_hospitals(lat, lon, radius=5000):
     """Fetch nearby hospitals using Google Places API"""
@@ -158,3 +161,34 @@ def send_notification(user, title, message):
     )
 
     return success
+
+
+def send_otp(user, purpose):
+    key = f"otp:{user.id}:{purpose}"
+    
+    if cache.get(key):
+        return
+
+    cache.set(key, True, timeout=60)
+
+    OTP.objects.filter(
+        user=user,
+        purpose=purpose,
+        is_used=False
+    ).update(is_used=True)
+
+    expiry_minutes = OTP_EXPIRY_MAP[purpose]
+    code = str(random.randint(100000, 999999))
+
+    OTP.objects.create(
+        user=user,
+        code=code,
+        purpose=purpose,
+        expires_at=timezone.now() + timedelta(minutes=expiry_minutes),
+    )
+
+    send_notification(
+        user,
+        title="OTP Verification",
+        message=f"Your OTP is {code}. It expires in {expiry_minutes} minutes."
+    )

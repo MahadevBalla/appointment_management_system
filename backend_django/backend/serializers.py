@@ -1,11 +1,10 @@
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.core.cache import cache
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-
-from .models import Service, Resource, WorkingHours, Slot, Booking, Notification
-
+from .models import Service, Resource, WorkingHours, Slot, Booking, Notification, OTP
 User = get_user_model()
 
 
@@ -35,9 +34,47 @@ class RegisterSerializer(serializers.ModelSerializer):
         return User.objects.create_user(**validated_data)
 
 
+class VerifyOtpSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6)
+    purpose = serializers.ChoiceField(choices=OTP.PURPOSE_CHOICES)
+
+    def validate(self, attrs):
+        try:
+            user = User.objects.get(email=attrs["email"])
+        except User.DoesNotExist:
+            raise serializers.ValidationError("Invalid user")
+
+        otp = OTP.objects.filter(
+            user=user,
+            code=attrs["otp"],
+            purpose=attrs["purpose"],
+            is_used=False,
+        ).last()
+
+        if not otp or not otp.is_valid():
+            raise serializers.ValidationError("Invalid or expired OTP")
+
+        attrs["user"] = user
+        attrs["otp_obj"] = otp
+        return attrs
+
+
 class LoginSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
-        data = super().validate(attrs)
+        key = f"login:{attrs.get('email')}"
+        attempts = cache.get(key, 0)
+
+        if attempts >= 5:
+            raise serializers.ValidationError("Too many login attempts")
+
+        try:
+            data = super().validate(attrs)
+        except Exception:
+            cache.set(key, attempts + 1, timeout=900)
+            raise
+
+        cache.delete(key)
 
         if not self.user.is_verified:
             raise serializers.ValidationError("User not verified via OTP")
@@ -49,6 +86,16 @@ class LoginSerializer(TokenObtainPairSerializer):
             "role": self.user.role,
         }
         return data
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6)
+    new_password = serializers.CharField(validators=[validate_password])
 
 
 class UserSerializer(serializers.ModelSerializer):

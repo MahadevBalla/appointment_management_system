@@ -11,6 +11,10 @@ from .views import (
     BookingViewSet,
     AvailabilityView,
     DashboardStatsView,
+    VerifyOtpView,
+    PasswordResetRequestView,
+    PasswordResetConfirmView,
+    ChangePasswordView,
 )
 
 router = DefaultRouter()
@@ -22,6 +26,10 @@ urlpatterns = [
     path("auth/register/", RegisterView.as_view()),
     path("auth/login/", LoginView.as_view()),
     path("auth/refresh/", TokenRefreshView.as_view()),
+    path("auth/verify-otp/", VerifyOtpView.as_view()),
+    path("auth/password-reset/request/", PasswordResetRequestView.as_view()),
+    path("auth/password-reset/confirm/", PasswordResetConfirmView.as_view()),
+    path("auth/password/change/", ChangePasswordView.as_view()),
     path("profile/", ProfileView.as_view()),
     path(
         "availability/<uuid:service_id>/<str:date_str>/",
