@@ -22,6 +22,15 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write("Seeding demo data...")
 
+        # CLEAN EXISTING DATA
+        Notification.objects.all().delete()
+        Payment.objects.all().delete()
+        Booking.objects.all().delete()
+        Slot.objects.all().delete()
+        WorkingHours.objects.all().delete()
+        Resource.objects.all().delete()
+        Service.objects.all().delete()
+
         # USERS
         admin, _ = User.objects.get_or_create(
             email="admin@demo.in",
@@ -71,106 +80,91 @@ class Command(BaseCommand):
             customers.append(user)
 
         # SERVICE
-        service, _ = Service.objects.get_or_create(
+        service = Service.objects.create(
             organiser=organiser,
             name="Doctor Consultation",
-            defaults={
-                "description": "15-minute general consultation",
-                "duration_minutes": 15,
-                "buffer_minutes": 0,
-                "capacity_per_slot": 1,
-                "advance_payment_required": False,
-                "price": 500,
-                "manual_confirmation": False,
-                "auto_assign_resource": True,
-                "questions_schema": [
-                    {"key": "problem", "label": "Describe your problem"},
-                    {"key": "age", "label": "Age"},
-                ],
-                "is_published": True,
-            },
+            description="15-minute general consultation",
+            duration_minutes=15,
+            buffer_minutes=0,
+            capacity_per_slot=1,
+            advance_payment_required=True,
+            price=500,
+            manual_confirmation=False,
+            auto_assign_resource=True,
+            questions_schema=[
+                {"key": "problem", "label": "Describe your problem"},
+                {"key": "age", "label": "Age"},
+            ],
+            is_published=True,
         )
 
         # RESOURCE
-        doctor, _ = Resource.objects.get_or_create(
+        doctor = Resource.objects.create(
             service=service,
             name="Dr. Amit Sharma",
-            defaults={
-                "type": "user",
-                "linked_user": organiser,
-                "is_active": True,
-            },
+            type="user",
+            linked_user=organiser,
+            is_active=True,
         )
 
-        # WORKING HOURS (Mon–Fri, 9–17)
+        # WORKING HOURS (Mon–Fri)
         for day in range(0, 5):
-            wh, _ = WorkingHours.objects.get_or_create(
+            WorkingHours.objects.create(
                 service=service,
                 resource=doctor,
                 day_of_week=day,
-                defaults={
-                    "start_time": datetime.time(9, 0),
-                    "end_time": datetime.time(17, 0),
-                },
+                start_time=datetime.time(9, 0),
+                end_time=datetime.time(17, 0),
             )
-            wh.full_clean()
-            wh.save()
 
         # SLOTS (next 3 days)
-        Slot.objects.filter(service=service).delete()
-
         now = timezone.localtime()
+
+        slots = []
         for day_offset in range(1, 4):
             date = now.date() + datetime.timedelta(days=day_offset)
             day_start = timezone.make_aware(
                 datetime.datetime.combine(date, datetime.time(9, 0))
             )
 
-            for i in range(8):  # 8 slots/day
-                slot_start = day_start + datetime.timedelta(minutes=i * 30)
-                slot_end = slot_start + datetime.timedelta(minutes=15)
-
-                Slot.objects.create(
+            for i in range(8):
+                slot = Slot.objects.create(
                     service=service,
                     resource=doctor,
-                    start_datetime=slot_start,
-                    end_datetime=slot_end,
+                    start_datetime=day_start + datetime.timedelta(minutes=i * 30),
+                    end_datetime=day_start + datetime.timedelta(minutes=i * 30 + 15),
                     capacity=1,
                     booked_count=0,
                     is_active=True,
                 )
-
-        slots = list(
-            Slot.objects.filter(service=service).order_by("start_datetime")
-        )
+                slots.append(slot)
 
         # BOOKINGS + PAYMENTS + NOTIFICATIONS
         for i, customer in enumerate(customers):
             slot = slots[i]
 
-            booking = Booking(
+            booking = Booking.objects.create(
                 customer=customer,
                 slot=slot,
-                service=slot.service,     # derived from slot
-                resource=slot.resource,   # derived from slot
+                service=service,
+                resource=doctor,
                 status="confirmed",
                 answers={
                     "problem": "General checkup",
                     "age": 25 + i,
                 },
             )
-            booking.full_clean()
-            booking.save()
 
             slot.booked_count += 1
-            slot.save()
+            slot.save(update_fields=["booked_count"])
 
             Payment.objects.create(
                 booking=booking,
                 amount=service.price,
+                currency="INR",
                 status="paid",
                 provider="razorpay",
-                provider_ref=f"rzp_demo_{i}",
+                razorpay_payment_id=f"rzp_demo_{i}",
             )
 
             Notification.objects.create(

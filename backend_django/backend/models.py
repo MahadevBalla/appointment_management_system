@@ -230,21 +230,36 @@ class Booking(models.Model):
 
 
 class Payment(models.Model):
-    STATUS_CHOICES = [
-        ("initiated", "Initiated"),
-        ("paid", "Paid"),
-        ("failed", "Failed"),
-        ("refunded", "Refunded"),
+    PROVIDER_CHOICES = [
+        ("razorpay", "Razorpay"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     booking = models.OneToOneField(Booking, on_delete=models.CASCADE)
 
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    currency = models.CharField(max_length=10, default="INR")
 
-    provider = models.CharField(max_length=50)
-    provider_ref = models.CharField(max_length=255, blank=True)
+    provider = models.CharField(
+        max_length=50,
+        choices=PROVIDER_CHOICES,
+        default="razorpay",
+    )
+
+    razorpay_order_id = models.CharField(max_length=100, blank=True)
+    razorpay_payment_id = models.CharField(max_length=100, blank=True)
+    razorpay_signature = models.CharField(max_length=255, blank=True)
+
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("initiated", "Initiated"),
+            ("paid", "Paid"),
+            ("failed", "Failed"),
+            ("refunded", "Refunded"),
+        ],
+        default="initiated",
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -15,6 +15,8 @@ from .views import (
     PasswordResetRequestView,
     PasswordResetConfirmView,
     ChangePasswordView,
+    CreatePaymentOrderView,
+    VerifyPaymentView,
 )
 
 router = DefaultRouter()
@@ -36,5 +38,7 @@ urlpatterns = [
         AvailabilityView.as_view(),
     ),
     path("dashboard/stats/", DashboardStatsView.as_view()),
+    path("payments/create-order/", CreatePaymentOrderView.as_view()),
+    path("payments/verify/", VerifyPaymentView.as_view()),
     path("", include(router.urls)),
 ]

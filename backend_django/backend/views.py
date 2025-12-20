@@ -1,16 +1,22 @@
-from django.contrib.admin import action
+import datetime
+from django.conf import settings
+from django.core.cache import cache
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import get_user_model
 from django_ratelimit.decorators import ratelimit
+from django.core.cache import cache
 from rest_framework import generics, permissions, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.views import TokenObtainPairView
-import datetime
-
-from .models import Service, Resource, Slot, Booking, OTP
+from rest_framework_simplejwt.token_blacklist.models import (
+    OutstandingToken,
+    BlacklistedToken,
+)
+from razorpay.errors import SignatureVerificationError
+from .models import Service, Resource, Slot, Booking, OTP, Payment
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
@@ -22,7 +28,7 @@ from .serializers import (
     PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer,
 )
-from .utils import send_otp
+from .utils import send_otp, get_razorpay_client
 
 User = get_user_model()
 
@@ -165,6 +171,90 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class CreatePaymentOrderView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        booking_id = request.data.get("booking_id")
+
+        booking = Booking.objects.get(
+            id=booking_id,
+            customer=request.user,
+        )
+
+        service = booking.service
+
+        if not service.advance_payment_required:
+            return Response(
+                {"error": "Payment not required for this booking"},
+                status=400,
+            )
+
+        amount_paise = int(service.price * 100)
+
+        client = get_razorpay_client()
+        order = client.order.create({
+            "amount": amount_paise,
+            "currency": "INR",
+            "payment_capture": 1,
+        })
+
+        Payment.objects.update_or_create(
+            booking=booking,
+            defaults={
+                "amount": service.price,
+                "currency": "INR",
+                "razorpay_order_id": order["id"],
+                "status": "initiated",
+            }
+        )
+
+        return Response({
+            "razorpay_key": settings.RAZORPAY_KEY_ID,
+            "order_id": order["id"],
+            "amount": amount_paise,
+            "currency": "INR",
+        })
+
+
+class VerifyPaymentView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        order_id = request.data.get("order_id")
+        payment_id = request.data.get("payment_id")
+        signature = request.data.get("signature")
+
+        payment = Payment.objects.get(
+            razorpay_order_id=order_id,
+            booking__customer=request.user,
+        )
+
+        client = get_razorpay_client()
+
+        try:
+            client.utility.verify_payment_signature({
+                "razorpay_order_id": order_id,
+                "razorpay_payment_id": payment_id,
+                "razorpay_signature": signature,
+            })
+        except SignatureVerificationError:
+            payment.status = "failed"
+            payment.save()
+            return Response({"error": "Invalid payment"}, status=400)
+
+        payment.razorpay_payment_id = payment_id
+        payment.razorpay_signature = signature
+        payment.status = "paid"
+        payment.save()
+
+        booking = payment.booking
+        booking.status = "confirmed"
+        booking.save(update_fields=["status"])
+
+        return Response({"message": "Payment verified"})
 
 
 class IsOrganiserOrAdmin(permissions.BasePermission):

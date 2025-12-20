@@ -1,5 +1,6 @@
 import requests
 import random
+import razorpay
 from datetime import timedelta
 from math import asin, cos, radians, sin, sqrt
 from django.utils import timezone
@@ -191,4 +192,10 @@ def send_otp(user, purpose):
         user,
         title="OTP Verification",
         message=f"Your OTP is {code}. It expires in {expiry_minutes} minutes."
+    )
+
+
+def get_razorpay_client():
+    return razorpay.Client(
+        auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
     )
