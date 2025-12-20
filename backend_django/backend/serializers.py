@@ -48,12 +48,17 @@ class VerifyOtpSerializer(serializers.Serializer):
         except User.DoesNotExist:
             raise serializers.ValidationError("Invalid user")
 
-        otp = OTP.objects.filter(
-            user=user,
-            code=attrs["otp"],
-            purpose=attrs["purpose"],
-            is_used=False,
-        ).last()
+        otp = (
+            OTP.objects
+            .filter(
+                user=user,
+                code=attrs["otp"],
+                purpose=attrs["purpose"],
+                is_used=False,
+            )
+            .order_by("-created_at")
+            .first()
+        )
 
         if not otp or not otp.is_valid():
             raise serializers.ValidationError("Invalid or expired OTP")
@@ -114,28 +119,78 @@ class UserSerializer(serializers.ModelSerializer):
             "notification_consent",
             "is_verified",
         ]
-        read_only_fields = ["id", "email", "is_verified"]
+        read_only_fields = ["id", "email", "role", "is_verified"]
 
 
 class ResourceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Resource
-        fields = "__all__"
+        fields = [
+            "id",
+            "service",
+            "name",
+            "type",
+            "linked_user",
+            "is_active",
+        ]
         read_only_fields = ["id"]
 
 
 class WorkingHoursSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkingHours
-        fields = "__all__"
+        fields = [
+            "id",
+            "service",
+            "resource",
+            "day_of_week",
+            "start_time",
+            "end_time",
+        ]
         read_only_fields = ["id"]
 
 
 class SlotSerializer(serializers.ModelSerializer):
+    available = serializers.SerializerMethodField()
+
     class Meta:
         model = Slot
-        fields = "__all__"
-        read_only_fields = ["id", "booked_count"]
+        fields = [
+            "id",
+            "service",
+            "resource",
+            "start_datetime",
+            "end_datetime",
+            "capacity",
+            "booked_count",
+            "is_active",
+            "available",
+        ]
+
+    def get_available(self, obj):
+        return obj.booked_count < obj.capacity
+
+    def get_fields(self):
+        fields = super().get_fields()
+        request = self.context.get("request")
+
+        fields["id"].read_only = True
+        fields["booked_count"].read_only = True
+        fields["service"].read_only = True
+        fields["resource"].read_only = True
+
+        if not request or not request.user.is_authenticated:
+            for f in ("start_datetime", "end_datetime", "capacity", "is_active"):
+                fields[f].read_only = True
+            return fields
+
+        role = request.user.role
+
+        if role == "customer":
+            for f in ("start_datetime", "end_datetime", "capacity", "is_active"):
+                fields[f].read_only = True
+
+        return fields
 
 
 class ServiceSerializer(serializers.ModelSerializer):
@@ -191,15 +246,33 @@ class BookingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Booking
-        fields = "__all__"
+        fields = [
+            "id",
+            "customer",
+            "service",
+            "resource",
+            "slot",
+            "quantity",
+            "answers",
+            "status",
+            "created_at",
+            "service_name",
+            "customer_name",
+        ]
         read_only_fields = [
             "id",
             "customer",
-            "created_at",
-            "status",
             "service",
             "resource",
+            "status",
+            "created_at",
         ]
+
+    def validate(self, attrs):
+        slot = attrs["slot"]
+        if not slot.is_active:
+            raise serializers.ValidationError("Slot is inactive")
+        return attrs
 
     def create(self, validated_data):
         request = self.context["request"]
@@ -208,6 +281,7 @@ class BookingSerializer(serializers.ModelSerializer):
 
         with transaction.atomic():
             slot = Slot.objects.select_for_update().get(id=slot.id)
+            
             if slot.booked_count + quantity > slot.capacity:
                 raise serializers.ValidationError("Slot capacity exceeded")
 
@@ -226,7 +300,6 @@ class BookingSerializer(serializers.ModelSerializer):
         if not service.manual_confirmation and not service.advance_payment_required:
             booking.status = "confirmed"
             booking.save(update_fields=["status"])
-
             transaction.on_commit(
                 lambda: run_task(booking_created_task, str(booking.id))
             )
@@ -236,15 +309,15 @@ class BookingSerializer(serializers.ModelSerializer):
     def cancel_booking(self, booking: Booking, user):
         if booking.customer != user:
             raise serializers.ValidationError("Not allowed")
-        if booking.status == "cancelled":
-            raise serializers.ValidationError("Booking already cancelled")
-        elif booking.status == "completed":
-            raise serializers.ValidationError("Completed booking, cannot be cancelled")
+
+        if booking.status in ("cancelled", "completed"):
+            raise serializers.ValidationError("Booking cannot be cancelled")
 
         with transaction.atomic():
             slot = Slot.objects.select_for_update().get(id=booking.slot_id)
             slot.booked_count = max(0, slot.booked_count - booking.quantity)
             slot.save(update_fields=["booked_count"])
+
             booking.status = "cancelled"
             booking.save(update_fields=["status"])
 
@@ -258,5 +331,13 @@ class BookingSerializer(serializers.ModelSerializer):
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
-        fields = "__all__"
+        fields = [
+            "id",
+            "user",
+            "channel",
+            "title",
+            "message",
+            "is_sent",
+            "created_at",
+        ]
         read_only_fields = ["id", "created_at", "is_sent"]

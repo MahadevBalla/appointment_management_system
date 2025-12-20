@@ -42,11 +42,10 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    email = models.EmailField(unique=True)
-    phone_no = models.CharField(max_length=15, blank=True, null=True)
+    email = models.EmailField(unique=True, db_index=True)
+    phone_no = models.CharField(max_length=15, blank=True, null=True, db_index=True)
 
     full_name = models.CharField(max_length=255)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="customer")
 
     notification_preference = models.CharField(
         max_length=20,
@@ -55,8 +54,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     notification_consent = models.BooleanField(default=True)
 
-    is_verified = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="customer", db_index=True)
+    is_verified = models.BooleanField(default=False, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
     is_staff = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -76,13 +76,12 @@ class OTP(models.Model):
         ("password_reset", "Password Reset"),
     ]
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otps")
     code = models.CharField(max_length=6)
     purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES)
 
-    expires_at = models.DateTimeField()
-    is_used = models.BooleanField(default=False)
+    expires_at = models.DateTimeField(db_index=True)
+    is_used = models.BooleanField(default=False, db_index=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -91,14 +90,14 @@ class OTP(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=["user", "purpose"]),
+            models.Index(fields=["user", "purpose", "is_used"]),
+            models.Index(fields=["expires_at"]),
         ]
 
 
 class Service(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organiser = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="services"
+        User, on_delete=models.CASCADE, related_name="services", db_index=True
     )
 
     name = models.CharField(max_length=255)
@@ -116,7 +115,7 @@ class Service(models.Model):
 
     questions_schema = models.JSONField(default=list)
 
-    is_published = models.BooleanField(default=False)
+    is_published = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
 
@@ -126,23 +125,21 @@ class Resource(models.Model):
         ("asset", "Asset/Room"),
     ]
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     service = models.ForeignKey(
-        Service, on_delete=models.CASCADE, related_name="resources"
+        Service, on_delete=models.CASCADE, related_name="resources", db_index=True
     )
 
     name = models.CharField(max_length=255)
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, db_index=True)
 
     linked_user = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL
     )
 
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, db_index=True)
 
 
 class WorkingHours(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     service = models.ForeignKey(Service, on_delete=models.CASCADE)
     resource = models.ForeignKey(
         Resource, null=True, blank=True, on_delete=models.CASCADE
@@ -157,7 +154,8 @@ class WorkingHours(models.Model):
             (4, "Fri"),
             (5, "Sat"),
             (6, "Sun"),
-        ]
+        ],
+        db_index=True
     )
 
     start_time = models.TimeField()
@@ -169,25 +167,45 @@ class WorkingHours(models.Model):
                 "WorkingHours.resource must belong to the same service."
             )
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["service", "day_of_week"]),
+            models.Index(fields=["resource", "day_of_week"]),
+        ]
+
 
 class Slot(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-
-    service = models.ForeignKey(Service, on_delete=models.CASCADE)
+    service = models.ForeignKey(Service, on_delete=models.CASCADE, db_index=True)
     resource = models.ForeignKey(
-        Resource, null=True, blank=True, on_delete=models.CASCADE
+        Resource, null=True, blank=True, on_delete=models.CASCADE, db_index=True
     )
 
-    start_datetime = models.DateTimeField()
+    start_datetime = models.DateTimeField(db_index=True)
     end_datetime = models.DateTimeField()
 
-    capacity = models.PositiveIntegerField(default=1)
-    booked_count = models.PositiveIntegerField(default=0)
+    capacity = models.PositiveIntegerField()
+    booked_count = models.PositiveIntegerField()
 
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, db_index=True)
 
     class Meta:
-        unique_together = ("resource", "start_datetime")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["resource", "start_datetime"],
+                name="uniq_resource_start",
+                condition=models.Q(resource__isnull=False),
+            )
+        ]
+        indexes = [
+            models.Index(fields=["service", "start_datetime"]),
+            models.Index(fields=["resource", "start_datetime"]),
+            models.Index(
+                fields=["start_datetime"],
+                name="active_slots_idx",
+                condition=models.Q(is_active=True),
+            ),
+        ]
+
 
 
 class Booking(models.Model):
@@ -200,23 +218,31 @@ class Booking(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    customer = models.ForeignKey(User, on_delete=models.CASCADE)
-    service = models.ForeignKey(Service, on_delete=models.CASCADE)
+    customer = models.ForeignKey(User, on_delete=models.CASCADE, db_index=True)
+    service = models.ForeignKey(Service, on_delete=models.CASCADE, db_index=True)
     resource = models.ForeignKey(
         Resource, null=True, blank=True, on_delete=models.SET_NULL
     )
-    slot = models.ForeignKey(Slot, on_delete=models.PROTECT)
+    slot = models.ForeignKey(Slot, on_delete=models.PROTECT, db_index=True)
 
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
         default="pending",
+        db_index=True,
     )
     answers = models.JSONField(default=dict)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     quantity = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["customer", "status"]),
+            models.Index(fields=["service", "status"]),
+            models.Index(fields=["created_at"]),
+        ]
 
     def clean(self):
         if self.service_id != self.slot.service_id:
@@ -259,6 +285,7 @@ class Payment(models.Model):
             ("refunded", "Refunded"),
         ],
         default="initiated",
+        db_index=True,
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -271,12 +298,17 @@ class Notification(models.Model):
         ("whatsapp", "WhatsApp"),
     ]
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, db_index=True)
 
-    channel = models.CharField(max_length=20, choices=CHANNEL_CHOICES)
+    channel = models.CharField(max_length=20, choices=CHANNEL_CHOICES, db_index=True)
     title = models.CharField(max_length=255)
     message = models.TextField()
 
-    is_sent = models.BooleanField(default=False)
+    is_sent = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "is_sent"]),
+            models.Index(fields=["created_at"]),
+        ]

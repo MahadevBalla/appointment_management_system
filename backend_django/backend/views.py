@@ -116,12 +116,17 @@ class PasswordResetConfirmView(APIView):
         serializer.is_valid(raise_exception=True)
 
         user = User.objects.get(email=serializer.validated_data["email"])
-        otp = OTP.objects.filter(
-            user=user,
-            code=serializer.validated_data["otp"],
-            purpose="password_reset",
-            is_used=False,
-        ).last()
+        otp = (
+            OTP.objects
+            .filter(
+                user=user,
+                code=serializer.validated_data["otp"],
+                purpose="password_reset",
+                is_used=False,
+            )
+            .order_by("-created_at")
+            .first()
+        )
 
         if not otp or not otp.is_valid():
             return Response({"error": "Invalid OTP"}, status=400)
@@ -234,10 +239,12 @@ class VerifyPaymentView(APIView):
         payment_id = request.data.get("payment_id")
         signature = request.data.get("signature")
 
-        payment = Payment.objects.get(
-            razorpay_order_id=order_id,
-            booking__customer=request.user,
-        )
+        qs = Payment.objects.filter(razorpay_order_id=order_id)
+
+        if request.user.role == "customer":
+            qs = qs.filter(booking__customer=request.user)
+
+        payment = qs.select_related("booking").get()
 
         client = get_razorpay_client()
 
@@ -294,7 +301,12 @@ class ServiceViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(organiser=self.request.user)
 
-    @action(detail=True,methods=["post"],permission_classes=[permissions.IsAuthenticatedOrReadOnly],url_path="questions",)
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsOrganiserOrAdmin],
+        url_path="questions",
+    )
     def add_question(self, request, pk=None):
         with transaction.atomic():
             service = self.get_object()
@@ -347,8 +359,11 @@ class BookingViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["patch"], url_path="cancel")
     def cancel(self, request, pk=None):
         booking = self.get_object()
-        serializers = self.get_serializer()
-        serializers.cancel_booking(booking, request.user)
+        serializer = BookingSerializer(
+            instance=booking,
+            context={"request": request},
+        )
+        serializer.cancel_booking(booking, request.user)
         return Response(
             {"id": booking.id, "status": booking.status}, status=status.HTTP_200_OK
         )

@@ -1,4 +1,5 @@
 from celery import shared_task
+from django.core.exceptions import ObjectDoesNotExist
 from ..models import Booking
 from ..utils import send_notification
 
@@ -11,7 +12,10 @@ from ..utils import send_notification
     queue="notifications"
 )
 def booking_created_task(self, booking_id):
-    booking = Booking.objects.select_related("customer").get(id=booking_id)
+    try:
+        booking = Booking.objects.select_related("customer", "service").get(id=booking_id)
+    except ObjectDoesNotExist:
+        return
 
     if booking.status != "confirmed":
         return
@@ -22,9 +26,19 @@ def booking_created_task(self, booking_id):
         f"Your booking for {booking.service.name} is confirmed."
     )
 
-@shared_task
-def booking_cancelled_task(booking_id):
-    booking = Booking.objects.get(id=booking_id)
+@shared_task(
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_kwargs={"max_retries": 5},
+    soft_time_limit=10,
+    time_limit=15,
+    queue="notifications",
+)
+def booking_cancelled_task(self, booking_id):
+    try:
+        booking = Booking.objects.select_related("customer").get(id=booking_id)
+    except ObjectDoesNotExist:
+        return
 
     if booking.status != "cancelled":
         return

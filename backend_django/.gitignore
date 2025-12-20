@@ -20,7 +20,7 @@ req.txt
 *.swp
 media/
 razorpay_test.html
-
+test_settings.py
 *.log
 
 .DS_Store
