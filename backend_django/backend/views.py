@@ -1,3 +1,4 @@
+from django.db import transaction
 import datetime
 from django.conf import settings
 from django.core.cache import cache
@@ -195,11 +196,13 @@ class CreatePaymentOrderView(APIView):
         amount_paise = int(service.price * 100)
 
         client = get_razorpay_client()
-        order = client.order.create({
-            "amount": amount_paise,
-            "currency": "INR",
-            "payment_capture": 1,
-        })
+        order = client.order.create(
+            {
+                "amount": amount_paise,
+                "currency": "INR",
+                "payment_capture": 1,
+            }
+        )
 
         Payment.objects.update_or_create(
             booking=booking,
@@ -208,15 +211,17 @@ class CreatePaymentOrderView(APIView):
                 "currency": "INR",
                 "razorpay_order_id": order["id"],
                 "status": "initiated",
-            }
+            },
         )
 
-        return Response({
-            "razorpay_key": settings.RAZORPAY_KEY_ID,
-            "order_id": order["id"],
-            "amount": amount_paise,
-            "currency": "INR",
-        })
+        return Response(
+            {
+                "razorpay_key": settings.RAZORPAY_KEY_ID,
+                "order_id": order["id"],
+                "amount": amount_paise,
+                "currency": "INR",
+            }
+        )
 
 
 class VerifyPaymentView(APIView):
@@ -235,11 +240,13 @@ class VerifyPaymentView(APIView):
         client = get_razorpay_client()
 
         try:
-            client.utility.verify_payment_signature({
-                "razorpay_order_id": order_id,
-                "razorpay_payment_id": payment_id,
-                "razorpay_signature": signature,
-            })
+            client.utility.verify_payment_signature(
+                {
+                    "razorpay_order_id": order_id,
+                    "razorpay_payment_id": payment_id,
+                    "razorpay_signature": signature,
+                }
+            )
         except SignatureVerificationError:
             payment.status = "failed"
             payment.save()
@@ -279,6 +286,37 @@ class ServiceViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(organiser=self.request.user)
+
+    @action(detail=True,methods=["post"],permission_classes=[permissions.IsAuthenticatedOrReadOnly],url_path="questions",)
+    def add_question(self, request, pk=None):
+        with transaction.atomic():
+            service = self.get_object()
+            question = request.data
+            required_fields = {"key", "label", "type", "required"}
+            allowed_types = {"text", "boolean", "number"}
+
+            if not required_fields.issubset(question):
+                return Response(
+                    {"error": "Missing required fields"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if question["type"] not in allowed_types:
+                return Response(
+                    {"error": "Missing required fields"}, status=status.HTTP_400_BAD_REQUEST
+                )
+            existing_keys = {q["key"] for q in service.questions_schema}
+            if question["key"] in existing_keys:
+                return Response(
+                    {"error": "Question key already exists"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            service.questions_schema.append(question)
+            service.save()
+            return Response(
+                {"message": "Question added successfully", "question":question},
+                status=status.HTTP_201_CREATED,
+            )
 
 
 class ResourceViewSet(viewsets.ModelViewSet):
