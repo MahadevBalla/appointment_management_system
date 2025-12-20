@@ -14,22 +14,42 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = "Seed services with multiple resources per service (schema-correct)"
+    help = "Seed demo data: admin, organiser, customers, services, resources, slots"
 
     def handle(self, *args, **options):
-        self.stdout.write("Seeding demo data (services + resources + slots)...")
+        self.stdout.write("Seeding demo data (users + services + resources + slots)...")
 
-        # --------------------
-        # CLEAN EXISTING DATA
-        # --------------------
+        # ------------------------------------------------
+        # CLEAN EXISTING DATA (order matters)
+        # ------------------------------------------------
         Slot.objects.all().delete()
         WorkingHours.objects.all().delete()
         Resource.objects.all().delete()
         Service.objects.all().delete()
+        User.objects.exclude(is_superuser=True).delete()
 
-        # --------------------
-        # USERS (organiser required)
-        # --------------------
+        # ------------------------------------------------
+        # ADMIN
+        # ------------------------------------------------
+        admin, _ = User.objects.get_or_create(
+            email="admin@demo.in",
+            defaults={
+                "full_name": "System Admin",
+                "role": "admin",
+                "phone_no": "9999999999",
+                "notification_preference": "email",
+                "notification_consent": True,
+                "is_verified": True,
+                "is_staff": True,
+                "is_superuser": True,
+            },
+        )
+        admin.set_password("admin123")
+        admin.save()
+
+        # ------------------------------------------------
+        # ORGANISER
+        # ------------------------------------------------
         organiser, _ = User.objects.get_or_create(
             email="organiser@demo.in",
             defaults={
@@ -44,12 +64,32 @@ class Command(BaseCommand):
         organiser.set_password("organiser123")
         organiser.save()
 
+        # ------------------------------------------------
+        # CUSTOMERS
+        # ------------------------------------------------
+        customers = []
+        for i in range(1, 6):
+            user, _ = User.objects.get_or_create(
+                email=f"customer{i}@demo.in",
+                defaults={
+                    "full_name": f"Customer {i}",
+                    "role": "customer",
+                    "phone_no": f"777777777{i}",
+                    "notification_preference": "email",
+                    "notification_consent": True,
+                    "is_verified": True,
+                },
+            )
+            user.set_password("customer123")
+            user.save()
+            customers.append(user)
+
         now = timezone.localtime()
         base_date = now.date() + datetime.timedelta(days=1)
 
-        # --------------------
+        # ------------------------------------------------
         # SERVICE DEFINITIONS
-        # --------------------
+        # ------------------------------------------------
         SERVICES = [
             {
                 "name": "Doctor Consultation",
@@ -119,9 +159,9 @@ class Command(BaseCommand):
             },
         ]
 
-        # --------------------
-        # CREATE DATA
-        # --------------------
+        # ------------------------------------------------
+        # CREATE SERVICES, RESOURCES, WORKING HOURS, SLOTS
+        # ------------------------------------------------
         for service_data in SERVICES:
             service = Service.objects.create(
                 organiser=organiser,
@@ -133,7 +173,7 @@ class Command(BaseCommand):
                 advance_payment_required=True,
                 price=service_data["price"],
                 manual_confirmation=False,
-                auto_assign_resource=False,  # customer selects resource
+                auto_assign_resource=False,
                 questions_schema=[
                     {
                         "key": "notes",
@@ -153,7 +193,7 @@ class Command(BaseCommand):
                     is_active=True,
                 )
 
-                # WORKING HOURS (Mon–Fri, 9 AM – 5 PM)
+                # WORKING HOURS (Mon–Fri)
                 for day in range(0, 5):
                     WorkingHours.objects.create(
                         service=service,
@@ -163,7 +203,7 @@ class Command(BaseCommand):
                         end_time=datetime.time(17, 0),
                     )
 
-                # SLOTS (next 3 days, 5 slots per day per resource)
+                # SLOTS (next 3 days, 5 per day)
                 for day_offset in range(1, 4):
                     date = base_date + datetime.timedelta(days=day_offset)
                     start_dt = timezone.make_aware(
@@ -187,6 +227,6 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                "Seeded 6 services with multiple resources, working hours, and slots"
+                "Seeded admin, organiser, customers, 6 services, resources, and slots"
             )
         )
