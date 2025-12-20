@@ -7,6 +7,7 @@ from backend.views import (
     CreatePaymentOrderView,
 )
 
+
 def execute_action(action, params, request):
     user = request.user
 
@@ -31,7 +32,9 @@ def execute_action(action, params, request):
             service_id=params["service_id"],
             date_str=params["date"],
         )
-        return {"data": resp.data, "context": params}
+        context = params.copy()
+        context["slots"] = resp.data
+        return {"data": resp.data, "context": context}
 
     if action == "create_booking":
         view = BookingViewSet.as_view({"post": "create"})
@@ -44,10 +47,7 @@ def execute_action(action, params, request):
                 "answers": params.get("answers", {}),
             },
         )
-        return {
-            "data": resp.data,
-            "context": {"booking_id": resp.data["id"]}
-        }
+        return {"data": resp.data, "context": {"booking_id": resp.data["id"]}}
 
     if action == "create_payment_order":
         view = CreatePaymentOrderView.as_view()
