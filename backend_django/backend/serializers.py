@@ -243,6 +243,13 @@ class ServiceSerializer(serializers.ModelSerializer):
 class BookingSerializer(serializers.ModelSerializer):
     service_name = serializers.CharField(source="service.name", read_only=True)
     customer_name = serializers.CharField(source="customer.full_name", read_only=True)
+    customer_email = serializers.CharField(source="customer.email", read_only=True)
+    customer_phone = serializers.CharField(source="customer.phone", read_only=True)
+    
+    # Nested details
+    service_details = serializers.SerializerMethodField()
+    resource_details = serializers.SerializerMethodField()
+    slot_details = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
@@ -258,6 +265,11 @@ class BookingSerializer(serializers.ModelSerializer):
             "created_at",
             "service_name",
             "customer_name",
+            "customer_email",
+            "customer_phone",
+            "service_details",
+            "resource_details",
+            "slot_details",
         ]
         read_only_fields = [
             "id",
@@ -267,6 +279,36 @@ class BookingSerializer(serializers.ModelSerializer):
             "status",
             "created_at",
         ]
+
+    def get_service_details(self, obj):
+        return {
+            "id": str(obj.service.id),
+            "name": obj.service.name,
+            "duration": obj.service.duration_minutes,
+            "advance_payment_required": obj.service.advance_payment_required,
+            "venue_name": getattr(obj.service, 'venue_name', ''),
+            "venue_address": getattr(obj.service, 'venue_address', ''),
+            "venue_city": getattr(obj.service, 'venue_city', ''),
+            "venue_state": getattr(obj.service, 'venue_state', ''),
+            "manage_capacity": True,  # Default value since field doesn't exist
+        }
+
+    def get_resource_details(self, obj):
+        if obj.resource:
+            return {
+                "id": str(obj.resource.id),
+                "name": obj.resource.name,
+            }
+        return None
+
+    def get_slot_details(self, obj):
+        return {
+            "id": str(obj.slot.id),
+            "start_datetime": obj.slot.start_datetime,
+            "end_datetime": obj.slot.end_datetime,
+            "capacity": obj.slot.capacity,
+            "booked_count": obj.slot.booked_count,
+        }
 
     def validate(self, attrs):
         slot = attrs["slot"]
@@ -300,9 +342,13 @@ class BookingSerializer(serializers.ModelSerializer):
         if not service.manual_confirmation and not service.advance_payment_required:
             booking.status = "confirmed"
             booking.save(update_fields=["status"])
-            transaction.on_commit(
-                lambda: run_task(booking_created_task, str(booking.id))
-            )
+            try:
+                transaction.on_commit(
+                    lambda: run_task(booking_created_task, str(booking.id))
+                )
+            except Exception as e:
+                # Log the error but don't fail the booking
+                print(f"Warning: Failed to queue notification task: {e}")
 
         return booking
 
@@ -321,9 +367,13 @@ class BookingSerializer(serializers.ModelSerializer):
             booking.status = "cancelled"
             booking.save(update_fields=["status"])
 
-        transaction.on_commit(
-            lambda: run_task(booking_cancelled_task, str(booking.id))
-        )
+        try:
+            transaction.on_commit(
+                lambda: run_task(booking_cancelled_task, str(booking.id))
+            )
+        except Exception as e:
+            # Log the error but don't fail the cancellation
+            print(f"Warning: Failed to queue notification task: {e}")
 
         return booking
 

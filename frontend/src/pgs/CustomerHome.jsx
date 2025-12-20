@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search } from 'lucide-react';
+import { serviceAPI } from '../services/api';
 
 const CustomerHome = () => {
   const navigate = useNavigate();
@@ -12,66 +13,38 @@ const CustomerHome = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('All');
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Dummy appointments data
-  const [appointments, setAppointments] = useState([
-    {
-      id: 1,
-      name: 'Dental care',
-      picture: '/placeholder-dental.jpg',
-      type: 'Paid',
-      appointment_type: 'user',
-      users: ['A1', 'A2'],
-      location: "Doctor's office",
-      introMessage: 'Schedule your visit today and experience expert dental care brought right to your doorstep.',
-      advance_payment_required: true,
-      advance_payment_amount: 500,
-      questions_schema: [
-        {
-          id: 'symptoms',
-          question: 'Symptoms',
-          type: 'textarea',
-          required: true
-        },
-        {
-          id: 'age',
-          question: 'Age',
-          type: 'number',
-          required: true
-        },
-        {
-          id: 'previousTreatment',
-          question: 'Have you had dental treatment before?',
-          type: 'boolean',
-          required: false
-        }
-      ]
-    },
-    {
-      id: 2,
-      name: 'Tennis court',
-      picture: '/placeholder-tennis.jpg',
-      type: 'Free',
-      appointment_type: 'resource',
-      resources: ['R1', 'R2'],
-      location: 'Tennis court',
-      introMessage: 'Book your tennis court session and enjoy world-class facilities.',
-      advance_payment_required: false,
-      advance_payment_amount: 0,
-      questions_schema: []
-    },
-  ]);
-
-  // Redirect if not customer
+  // Fetch services from API
   useEffect(() => {
-    if (user && user.role !== 'customer') {
-      navigate('/customerhome');
-    }
-  }, [user, navigate]);
+    fetchServices();
+  }, []);
 
-  const filteredAppointments = appointments.filter(apt => {
-    const matchesSearch = apt.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = selectedType === 'All' || apt.type === selectedType;
+  const fetchServices = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await serviceAPI.getServices();
+      setServices(response.data || []);
+    } catch (error) {
+      console.error('Error fetching services:', error);
+      setError('Failed to load services. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter services based on search and type
+  const filteredServices = services.filter((service) => {
+    const matchesSearch = service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      service.description.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesType = selectedType === 'All' ||
+      (selectedType === 'Paid' && service.advance_payment_required) ||
+      (selectedType === 'Free' && !service.advance_payment_required);
+
     return matchesSearch && matchesType;
   });
 
@@ -128,84 +101,107 @@ const CustomerHome = () => {
           <h2 className="text-xl font-semibold text-gray-900">Appointments</h2>
         </div>
 
-        {/* Appointments Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredAppointments.map((appointment) => (
-            <div
-              key={appointment.id}
-              className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => navigate(`/customer/appointment/${appointment.id}`)}
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading services...</p>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p className="text-red-700">{error}</p>
+            <Button 
+              onClick={fetchServices} 
+              variant="outline" 
+              className="mt-2"
+              size="sm"
             >
-              <div className="p-6">
-                <div className="flex gap-6">
-                  {/* Picture Placeholder */}
-                  <div className="w-48 h-48 flex-shrink-0 bg-gray-100 rounded-md flex items-center justify-center border border-gray-200">
-                    <span className="text-gray-400 text-sm">Picture</span>
-                  </div>
+              Retry
+            </Button>
+          </div>
+        )}
 
-                  {/* Details */}
-                  <div className="flex-1 space-y-3">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                        {appointment.name}
-                      </h3>
-                      <Badge
-                        variant="outline"
-                        className={
-                          appointment.type === 'Paid'
-                            ? 'bg-yellow-50 text-yellow-700 border-yellow-300'
-                            : 'bg-green-50 text-green-700 border-green-300'
-                        }
-                      >
-                        {appointment.type}
-                      </Badge>
+        {/* Appointments Grid */}
+        {!loading && !error && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {filteredServices.map((service) => (
+              <div
+                key={service.id}
+                className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => navigate(`/customer/appointment/${service.id}`)}
+              >
+                <div className="p-6">
+                  <div className="flex gap-6">
+                    {/* Picture Placeholder */}
+                    <div className="w-48 h-48 flex-shrink-0 bg-gray-100 rounded-md flex items-center justify-center border border-gray-200">
+                      <span className="text-gray-400 text-sm">Picture</span>
                     </div>
 
-                    {appointment.users && (
-                      <div className="text-sm">
-                        <span className="font-medium text-gray-700">Users:</span>
-                        <div className="flex gap-1 mt-1">
-                          {appointment.users.map((user, idx) => (
-                            <span key={idx} className="text-gray-600">{user}</span>
-                          ))}
-                        </div>
+                    {/* Details */}
+                    <div className="flex-1 space-y-3">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                          {service.name}
+                        </h3>
+                        <Badge
+                          variant="outline"
+                          className={
+                            service.advance_payment_required
+                              ? 'bg-yellow-50 text-yellow-700 border-yellow-300'
+                              : 'bg-green-50 text-green-700 border-green-300'
+                          }
+                        >
+                          {service.advance_payment_required ? 'Paid' : 'Free'}
+                        </Badge>
                       </div>
-                    )}
 
-                    {appointment.resources && (
                       <div className="text-sm">
-                        <span className="font-medium text-gray-700">Resources:</span>
-                        <div className="flex gap-1 mt-1">
-                          {appointment.resources.map((resource, idx) => (
-                            <span key={idx} className="text-gray-600">{resource}</span>
-                          ))}
-                        </div>
+                        <span className="font-medium text-gray-700">Duration:</span>
+                        <span className="text-gray-600 ml-2">{service.duration_minutes} minutes</span>
                       </div>
-                    )}
 
-                    <div className="text-sm">
-                      <span className="font-medium text-gray-700">Location:</span>
-                      <span className="text-gray-600 ml-2">{appointment.location}</span>
+                      {service.price > 0 && (
+                        <div className="text-sm">
+                          <span className="font-medium text-gray-700">Price:</span>
+                          <span className="text-gray-600 ml-2">₹{parseFloat(service.price).toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      <div className="text-sm">
+                        <span className="font-medium text-gray-700">Capacity:</span>
+                        <span className="text-gray-600 ml-2">{service.capacity_per_slot} per slot</span>
+                      </div>
+
+                      {service.description && (
+                        <div className="text-sm">
+                          <span className="font-medium text-gray-700">Location:</span>
+                          <span className="text-gray-600 ml-2">{service.description}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
 
-                {/* Introduction Message */}
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <p className="text-sm text-gray-600 italic">
-                    {appointment.introMessage}
-                  </p>
+                  {/* Introduction Message */}
+                  {service.introduction_message && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <p className="text-sm text-gray-600 italic">
+                        {service.introduction_message}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
 
-          {filteredAppointments.length === 0 && (
-            <div className="col-span-2 text-center py-12">
-              <p className="text-gray-500">No appointments found</p>
-            </div>
-          )}
-        </div>
+            {filteredServices.length === 0 && !loading && !error && (
+              <div className="col-span-2 text-center py-12">
+                <p className="text-gray-500">No services found matching your criteria</p>
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );

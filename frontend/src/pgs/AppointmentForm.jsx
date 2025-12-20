@@ -47,7 +47,7 @@ import {
   Clock,
   User
 } from 'lucide-react';
-import { serviceAPI } from '../services/api';
+import { serviceAPI, bookingAPI } from '../services/api';
 
 const AppointmentForm = () => {
   const navigate = useNavigate();
@@ -126,6 +126,8 @@ const AppointmentForm = () => {
   const [slots, setSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [expandedBookings, setExpandedBookings] = useState({});
+  const [deleteBookingId, setDeleteBookingId] = useState(null);
+  const [deletingBooking, setDeletingBooking] = useState(false);
 
   // Dummy schedule data
   const [schedule, setSchedule] = useState([
@@ -366,6 +368,32 @@ const AppointmentForm = () => {
       ...prev,
       [bookingId]: !prev[bookingId]
     }));
+  };
+
+  const handleDeleteBooking = (bookingId, e) => {
+    e.stopPropagation(); // Prevent expanding/collapsing
+    setDeleteBookingId(bookingId);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteBookingId) return;
+
+    try {
+      setDeletingBooking(true);
+      setError('');
+      
+      await bookingAPI.adminDeleteBooking(deleteBookingId);
+      
+      // Refresh slots to show updated data
+      await fetchSlots();
+      
+      setDeleteBookingId(null);
+    } catch (error) {
+      console.error('Error deleting booking:', error);
+      setError(error.response?.data?.error || 'Failed to delete booking. Please try again.');
+    } finally {
+      setDeletingBooking(false);
+    }
   };
 
   // Save handler to create or update service
@@ -954,6 +982,18 @@ const AppointmentForm = () => {
                                               </div>
                                             </div>
                                           )}
+
+                                          <div className="pt-3 border-t border-gray-100 flex justify-end">
+                                            <Button
+                                              variant="destructive"
+                                              size="sm"
+                                              onClick={(e) => handleDeleteBooking(booking.booking_id, e)}
+                                              className="flex items-center gap-2"
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                              Delete Booking
+                                            </Button>
+                                          </div>
                                         </div>
                                       )}
                                     </div>
@@ -1340,6 +1380,46 @@ const AppointmentForm = () => {
           </Tabs>
         </div>
       </main>
+
+      {/* Delete Booking Confirmation Dialog */}
+      <Dialog open={!!deleteBookingId} onOpenChange={() => setDeleteBookingId(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete Booking</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-600">
+              Are you sure you want to delete this booking? This action cannot be undone.
+              The slot capacity will be updated automatically.
+            </p>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" disabled={deletingBooking}>
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={deletingBooking}
+              className="flex items-center gap-2"
+            >
+              {deletingBooking ? (
+                <>
+                  <span className="animate-spin">⏳</span>
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { DatePicker } from '@mantine/dates';
 import { Calendar as CalendarIcon, Clock, Users } from 'lucide-react';
 import '@mantine/dates/styles.css';
+import { serviceAPI } from '../services/api';
 
 const CustomerBooking = () => {
   const navigate = useNavigate();
@@ -44,18 +45,33 @@ const CustomerBooking = () => {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [numberOfPeople, setNumberOfPeople] = useState(1);
   const [manageCapacity, setManageCapacity] = useState(false);
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
-  // Available time slots
-  const timeSlots = [
-    { id: 1, time: '9:00 AM', available: true },
-    { id: 2, time: '9:30 AM', available: true },
-    { id: 3, time: '10:00 AM', available: false },
-    { id: 4, time: '10:30 AM', available: true },
-    { id: 5, time: '11:00 AM', available: true },
-    { id: 6, time: '11:30 AM', available: true },
-    { id: 7, time: '12:00 PM', available: false },
-    { id: 8, time: '12:30 PM', available: true },
-  ];
+  // Fetch available slots when date changes
+  useEffect(() => {
+    if (selectedDate && id) {
+      fetchAvailableSlots();
+    }
+  }, [selectedDate, id]);
+
+  const fetchAvailableSlots = async () => {
+    try {
+      setLoadingSlots(true);
+      const dateStr = selectedDate instanceof Date 
+        ? selectedDate.toISOString().split('T')[0] 
+        : selectedDate;
+      console.log('Fetching slots for service:', id, 'date:', dateStr);
+      const response = await serviceAPI.getAvailability(id, dateStr);
+      console.log('Slots response:', response.data);
+      setAvailableSlots(response.data || []);
+    } catch (error) {
+      console.error('Error fetching slots:', error);
+      setAvailableSlots([]);
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
 
   // If no booking info, redirect back
   if (!bookingInfo) {
@@ -80,17 +96,24 @@ const CustomerBooking = () => {
   };
 
   const handleSlotClick = (slot) => {
-    if (slot.available) {
-      setSelectedSlot(slot);
-    }
+    setSelectedSlot(slot);
   };
 
   const handleConfirmBooking = () => {
+    // Get the time from the slot
+    const slotTime = selectedSlot.start ? 
+      new Date(selectedSlot.start).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      }) : (selectedSlot.start_time || selectedSlot.time);
+
     const bookingData = {
       appointment,
       resource,
       selectedDate: selectedDate instanceof Date ? selectedDate.toISOString().split('T')[0] : selectedDate,
-      selectedTime: selectedSlot?.time,
+      selectedTime: slotTime,
+      selectedSlot: selectedSlot,
       numberOfPeople: (showCapacityInput && manageCapacity) ? numberOfPeople : 1,
     };
     
@@ -98,7 +121,7 @@ const CustomerBooking = () => {
     sessionStorage.setItem('bookingData', JSON.stringify(bookingData));
     
     // Navigate to booking details page
-    navigate('/customer/booking-details', { state: bookingData });
+    navigate(`/customer/appointment/${id}/book/booking-details`, { state: bookingData });
   };
 
   const isBookingValid = selectedDate && selectedSlot;
@@ -185,35 +208,49 @@ const CustomerBooking = () => {
                   <Clock className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-500">Please select a date first</p>
                 </div>
+              ) : loadingSlots ? (
+                <div className="bg-gray-50 rounded-lg p-8 border-2 border-dashed border-gray-300 text-center">
+                  <Clock className="h-12 w-12 text-gray-400 mx-auto mb-3 animate-spin" />
+                  <p className="text-gray-500">Loading available slots...</p>
+                </div>
+              ) : availableSlots.length === 0 ? (
+                <div className="bg-gray-50 rounded-lg p-8 border-2 border-dashed border-gray-300 text-center">
+                  <Clock className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-500">No available slots for this date</p>
+                </div>
               ) : (
                 <div className="space-y-3">
                   <div className="grid grid-cols-4 gap-3">
-                    {timeSlots.map((slot) => (
-                      <button
-                        key={slot.id}
-                        type="button"
-                        onClick={() => handleSlotClick(slot)}
-                        disabled={!slot.available}
-                        className={`
-                          relative py-3 px-4 rounded-lg font-medium text-sm transition-all
-                          ${
-                            selectedSlot?.id === slot.id
-                              ? 'bg-teal-600 text-white shadow-lg ring-2 ring-teal-500 ring-offset-2'
-                              : slot.available
-                              ? 'bg-white border-2 border-gray-300 text-gray-700 hover:border-teal-400 hover:bg-teal-50'
-                              : 'bg-gray-100 border-2 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
-                          }
-                        `}
-                      >
-                        {slot.time}
-                        {!slot.available && (
-                          <span className="absolute top-1 right-1 text-xs">✕</span>
-                        )}
-                      </button>
-                    ))}
+                    {availableSlots.map((slot) => {
+                      // Parse the start datetime to display time
+                      const startTime = slot.start ? 
+                        new Date(slot.start).toLocaleTimeString('en-US', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true
+                        }) : (slot.start_time || 'N/A');
+                      
+                      return (
+                        <button
+                          key={slot.id}
+                          type="button"
+                          onClick={() => handleSlotClick(slot)}
+                          className={`
+                            relative py-3 px-4 rounded-lg font-medium text-sm transition-all
+                            ${
+                              selectedSlot?.id === slot.id
+                                ? 'bg-teal-600 text-white shadow-lg ring-2 ring-teal-500 ring-offset-2'
+                                : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-teal-400 hover:bg-teal-50'
+                            }
+                          `}
+                        >
+                          {startTime}
+                        </button>
+                      );
+                    })}
                   </div>
                   <p className="text-sm text-gray-500">
-                    Duration: {appointment.duration}
+                    Duration: {appointment.duration_minutes || appointment.duration} minutes
                   </p>
                 </div>
               )}
@@ -285,7 +322,15 @@ const CustomerBooking = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Time:</span>
-                    <span className="font-medium text-gray-900">{selectedSlot.time}</span>
+                    <span className="font-medium text-gray-900">
+                      {selectedSlot.start ? 
+                        new Date(selectedSlot.start).toLocaleTimeString('en-US', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true
+                        }) : (selectedSlot.start_time || selectedSlot.time)
+                      }
+                    </span>
                   </div>
                   {showCapacityInput && manageCapacity && (
                     <div className="flex justify-between">

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,15 +7,31 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, User, DollarSign, ArrowLeft } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { serviceAPI } from '../services/api';
 
 const BookingDetails = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { id } = useParams();
   const { user } = useSelector((state) => state.auth);
+
+  // Helper function to get auth token from authTokens object
+  const getAuthToken = () => {
+    const tokens = localStorage.getItem("authTokens")
+      ? JSON.parse(localStorage.getItem("authTokens"))
+      : sessionStorage.getItem("authTokens")
+        ? JSON.parse(sessionStorage.getItem("authTokens"))
+        : null;
+    return tokens?.access || null;
+  };
 
   // Get booking data from navigation state or sessionStorage
   const bookingData = location.state || JSON.parse(sessionStorage.getItem('bookingData') || '{}');
-  const { appointment, resource, selectedDate, selectedTime, numberOfPeople } = bookingData;
+  const { resource, selectedDate, selectedTime, numberOfPeople, selectedSlot } = bookingData;
+
+  // State for fresh service data
+  const [appointment, setAppointment] = useState(bookingData.appointment || null);
+  const [fetchingService, setFetchingService] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -28,6 +44,32 @@ const BookingDetails = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Fetch fresh service data on mount to get latest questions_schema
+  useEffect(() => {
+    const fetchServiceData = async () => {
+      if (id) {
+        try {
+          setFetchingService(true);
+          const response = await serviceAPI.getService(id);
+          setAppointment(response.data);
+
+          // Update sessionStorage with fresh data
+          const updatedBookingData = {
+            ...bookingData,
+            appointment: response.data
+          };
+          sessionStorage.setItem('bookingData', JSON.stringify(updatedBookingData));
+        } catch (error) {
+          console.error('Error fetching service:', error);
+        } finally {
+          setFetchingService(false);
+        }
+      }
+    };
+
+    fetchServiceData();
+  }, [id]);
+
   // Save booking data to sessionStorage on mount
   useEffect(() => {
     if (location.state) {
@@ -35,15 +77,28 @@ const BookingDetails = () => {
     }
   }, [location.state]);
 
-  // Redirect if no booking data
+  // Redirect if no booking data (but not during payment flow)
   useEffect(() => {
-    if (!appointment || !resource) {
-      navigate('/customerhome');
+    if (!resource && !loading) {
+      navigate('/customer/home');
     }
-  }, [appointment, resource, navigate]);
+  }, [resource, navigate, loading]);
 
   if (!appointment || !resource) {
-    return null;
+    return (
+      <div className="w-full min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">
+            {fetchingService ? 'Loading booking details...' : 'No booking information found'}
+          </p>
+          {!fetchingService && (
+            <Button onClick={() => navigate('/customer/home')}>
+              Return to Home
+            </Button>
+          )}
+        </div>
+      </div>
+    );
   }
 
   const handleInputChange = (e) => {
@@ -71,8 +126,11 @@ const BookingDetails = () => {
     // Validate service questions
     const questions = appointment.questions_schema || [];
     for (const question of questions) {
-      if (question.required && !serviceAnswers[question.id]) {
-        setError(`Please answer: ${question.question}`);
+      const questionKey = question.key || question.id;
+      const questionText = question.label || question.question || 'Question';
+
+      if (question.required && !serviceAnswers[questionKey]) {
+        setError(`Please answer: ${questionText}`);
         return false;
       }
     }
@@ -82,7 +140,7 @@ const BookingDetails = () => {
 
   const handleConfirmBooking = async () => {
     setError('');
-    
+
     if (!validateForm()) {
       return;
     }
@@ -92,37 +150,43 @@ const BookingDetails = () => {
     try {
       const bookingPayload = {
         service: appointment.id,
-        resource: resource.id,
-        date: selectedDate,
-        time: selectedTime,
-        number_of_people: numberOfPeople || 1,
-        customer_name: formData.name,
-        customer_email: formData.email,
-        customer_phone: formData.phone,
-        service_answers: serviceAnswers,
+        slot: selectedSlot.id,
+        resource: resource.id || null,
+        answers: serviceAnswers,
+        quantity: numberOfPeople || 1,
       };
 
+      console.log('Booking payload:', bookingPayload);
+
       // API call to create booking
-      const response = await fetch('/api/bookings/', {
+      const response = await fetch('http://localhost:8000/api/bookings/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          'Authorization': `Bearer ${getAuthToken()}`
         },
-        body: JSON.stringify(bookingPayload),
+        body: JSON.stringify(bookingPayload)
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create booking');
+        const errorData = await response.json();
+        console.error('Booking error response:', errorData);
+
+        // Handle array of errors or single error message
+        const errorMessage = Array.isArray(errorData)
+          ? errorData.join(', ')
+          : errorData.error || errorData.message || JSON.stringify(errorData);
+
+        throw new Error(errorMessage || 'Failed to create booking');
       }
 
       const result = await response.json();
-      
+
       // Clear session storage
       sessionStorage.removeItem('bookingData');
-      
+
       // Navigate to success page
-      navigate('/customer/booking-success', { state: { booking: result } });
+      navigate(`/customer/${result.id}/success`, { state: { booking_id: result.id } });
     } catch (err) {
       setError(err.message || 'Failed to confirm booking. Please try again.');
     } finally {
@@ -132,7 +196,7 @@ const BookingDetails = () => {
 
   const handleProceedToPayment = async () => {
     setError('');
-    
+
     if (!validateForm()) {
       return;
     }
@@ -140,63 +204,159 @@ const BookingDetails = () => {
     setLoading(true);
 
     try {
-      const paymentPayload = {
+      // First, create the booking
+      const bookingPayload = {
         service: appointment.id,
-        resource: resource.id,
-        date: selectedDate,
-        time: selectedTime,
-        number_of_people: numberOfPeople || 1,
-        customer_name: formData.name,
-        customer_email: formData.email,
-        customer_phone: formData.phone,
-        service_answers: serviceAnswers,
-        amount: appointment.advance_payment_amount,
+        slot: selectedSlot.id,
+        resource: resource.id || null,
+        answers: serviceAnswers,
+        quantity: numberOfPeople || 1,
       };
 
-      // API call to create payment order
-      const response = await fetch('/api/payments/create-order/', {
+      const bookingResponse = await fetch('http://localhost:8000/api/bookings/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          'Authorization': `Bearer ${getAuthToken()}`
         },
-        body: JSON.stringify(paymentPayload),
+        body: JSON.stringify(bookingPayload)
       });
 
-      if (!response.ok) {
+      if (!bookingResponse.ok) {
+        const errorData = await bookingResponse.json();
+
+        // Handle array of errors or single error message
+        const errorMessage = Array.isArray(errorData)
+          ? errorData.join(', ')
+          : errorData.error || errorData.message || JSON.stringify(errorData);
+
+        throw new Error(errorMessage || 'Failed to create booking');
+      }
+
+      const bookingResult = await bookingResponse.json();
+
+      // Create Razorpay order
+      const orderResponse = await fetch('http://localhost:8000/api/payments/create-order/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getAuthToken()}`,
+        },
+        body: JSON.stringify({ booking_id: bookingResult.id }),
+      });
+
+      if (!orderResponse.ok) {
+        const errorData = await orderResponse.json();
         throw new Error('Failed to create payment order');
       }
 
-      const result = await response.json();
-      
-      // Redirect to payment gateway or handle payment
-      // This will depend on your payment integration (Razorpay, Stripe, etc.)
-      console.log('Payment order created:', result);
-      
-      // For now, navigate to payment page with order details
-      navigate('/customer/payment', { state: { order: result, bookingData } });
+      const orderData = await orderResponse.json();
+
+      // Function to open Razorpay
+      const openRazorpay = () => {
+        const options = {
+          key: orderData.razorpay_key,
+          amount: orderData.amount,
+          currency: orderData.currency,
+          order_id: orderData.order_id,
+          name: appointment.name,
+          description: `Booking for ${appointment.name}`,
+          handler: async function (response) {
+            // Verify payment
+            try {
+              console.log('Payment response from Razorpay:', response);
+              
+              const verifyResponse = await fetch('http://localhost:8000/api/payments/verify/', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${getAuthToken()}`,
+                },
+                body: JSON.stringify({
+                  order_id: response.razorpay_order_id,
+                  payment_id: response.razorpay_payment_id,
+                  signature: response.razorpay_signature,
+                }),
+              });
+
+              const verifyData = await verifyResponse.json();
+              console.log('Verification response:', verifyData);
+
+              if (!verifyResponse.ok) {
+                const errorMessage = verifyData.error || 'Payment verification failed';
+                throw new Error(errorMessage);
+              }
+
+              // Clear session storage
+              sessionStorage.removeItem('bookingData');
+
+              // Navigate to success page
+              navigate(`/customer/${bookingResult.id}/success`, {
+                state: {
+                  booking_id: bookingResult.id
+                }
+              });
+            } catch (verifyError) {
+              console.error('Verification error:', verifyError);
+              setError(verifyError.message || 'Payment verification failed. Please contact support.');
+              setLoading(false);
+            }
+          },
+          theme: {
+            color: '#14b8a6' // Teal color
+          },
+          modal: {
+            ondismiss: function () {
+              setLoading(false);
+              setError('Payment cancelled');
+            }
+          }
+        };
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+        setLoading(false);
+      };
+
+      // Load Razorpay script if not already loaded
+      if (!window.Razorpay) {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.onload = () => {
+          openRazorpay();
+        };
+        script.onerror = () => {
+          setError('Failed to load payment gateway. Please refresh and try again.');
+          setLoading(false);
+        };
+        document.body.appendChild(script);
+      } else {
+        openRazorpay();
+      }
     } catch (err) {
-      setError(err.message || 'Failed to create payment order. Please try again.');
-    } finally {
+      console.error('Payment error:', err);
+      setError(err.message || 'Failed to process payment. Please try again.');
       setLoading(false);
     }
   };
 
   const renderServiceQuestion = (question) => {
+    const questionText = question.label || question.question || 'Question';
+    const questionKey = question.key || question.id;
+
     switch (question.type) {
       case 'text':
         return (
-          <div key={question.id} className="space-y-2">
-            <Label htmlFor={question.id}>
-              {question.question}
+          <div key={questionKey} className="space-y-2">
+            <Label htmlFor={questionKey}>
+              {questionText}
               {question.required && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <Input
-              id={question.id}
+              id={questionKey}
               type="text"
-              value={serviceAnswers[question.id] || ''}
-              onChange={(e) => handleServiceQuestionChange(question.id, e.target.value)}
-              placeholder={`Enter ${question.question.toLowerCase()}`}
+              value={serviceAnswers[questionKey] || ''}
+              onChange={(e) => handleServiceQuestionChange(questionKey, e.target.value)}
+              placeholder={`Enter ${questionText.toLowerCase()}`}
               required={question.required}
             />
           </div>
@@ -204,17 +364,17 @@ const BookingDetails = () => {
 
       case 'number':
         return (
-          <div key={question.id} className="space-y-2">
-            <Label htmlFor={question.id}>
-              {question.question}
+          <div key={questionKey} className="space-y-2">
+            <Label htmlFor={questionKey}>
+              {questionText}
               {question.required && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <Input
-              id={question.id}
+              id={questionKey}
               type="number"
-              value={serviceAnswers[question.id] || ''}
-              onChange={(e) => handleServiceQuestionChange(question.id, e.target.value)}
-              placeholder={`Enter ${question.question.toLowerCase()}`}
+              value={serviceAnswers[questionKey] || ''}
+              onChange={(e) => handleServiceQuestionChange(questionKey, e.target.value)}
+              placeholder={`Enter ${questionText.toLowerCase()}`}
               required={question.required}
             />
           </div>
@@ -222,14 +382,14 @@ const BookingDetails = () => {
 
       case 'boolean':
         return (
-          <div key={question.id} className="flex items-center space-x-2 py-2">
+          <div key={questionKey} className="flex items-center space-x-2 py-2">
             <Checkbox
-              id={question.id}
-              checked={serviceAnswers[question.id] || false}
-              onCheckedChange={(checked) => handleServiceQuestionChange(question.id, checked)}
+              id={questionKey}
+              checked={serviceAnswers[questionKey] || false}
+              onCheckedChange={(checked) => handleServiceQuestionChange(questionKey, checked)}
             />
-            <Label htmlFor={question.id} className="cursor-pointer">
-              {question.question}
+            <Label htmlFor={questionKey} className="cursor-pointer">
+              {questionText}
               {question.required && <span className="text-red-500 ml-1">*</span>}
             </Label>
           </div>
@@ -237,16 +397,16 @@ const BookingDetails = () => {
 
       case 'textarea':
         return (
-          <div key={question.id} className="space-y-2">
-            <Label htmlFor={question.id}>
-              {question.question}
+          <div key={questionKey} className="space-y-2">
+            <Label htmlFor={questionKey}>
+              {questionText}
               {question.required && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <textarea
-              id={question.id}
-              value={serviceAnswers[question.id] || ''}
-              onChange={(e) => handleServiceQuestionChange(question.id, e.target.value)}
-              placeholder={`Enter ${question.question.toLowerCase()}`}
+              id={questionKey}
+              value={serviceAnswers[questionKey] || ''}
+              onChange={(e) => handleServiceQuestionChange(questionKey, e.target.value)}
+              placeholder={`Enter ${questionText.toLowerCase()}`}
               required={question.required}
               className="w-full min-h-[100px] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
@@ -255,17 +415,17 @@ const BookingDetails = () => {
 
       default:
         return (
-          <div key={question.id} className="space-y-2">
-            <Label htmlFor={question.id}>
-              {question.question}
+          <div key={questionKey} className="space-y-2">
+            <Label htmlFor={questionKey}>
+              {questionText}
               {question.required && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <Input
-              id={question.id}
+              id={questionKey}
               type="text"
-              value={serviceAnswers[question.id] || ''}
-              onChange={(e) => handleServiceQuestionChange(question.id, e.target.value)}
-              placeholder={`Enter ${question.question.toLowerCase()}`}
+              value={serviceAnswers[questionKey] || ''}
+              onChange={(e) => handleServiceQuestionChange(questionKey, e.target.value)}
+              placeholder={`Enter ${questionText.toLowerCase()}`}
               required={question.required}
             />
           </div>
@@ -273,7 +433,7 @@ const BookingDetails = () => {
     }
   };
 
-  const isPaidService = appointment.advance_payment_required && appointment.advance_payment_amount > 0;
+  const isPaidService = appointment.advance_payment_required && appointment.price > 0;
 
   return (
     <div className="w-full min-h-screen bg-gray-50">
@@ -369,31 +529,16 @@ const BookingDetails = () => {
 
             {/* Action Buttons */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              {isPaidService ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-teal-50 rounded-md">
-                    <span className="text-gray-700 font-medium">Amount to Pay:</span>
-                    <span className="text-2xl font-bold text-teal-600">
-                      ₹{appointment.advance_payment_amount}
-                    </span>
-                  </div>
-                  <Button
-                    onClick={handleProceedToPayment}
-                    disabled={loading}
-                    className="w-full bg-teal-600 hover:bg-teal-700 text-white py-6 text-lg"
-                  >
-                    {loading ? 'Processing...' : 'Proceed to Payment'}
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  onClick={handleConfirmBooking}
-                  disabled={loading}
-                  className="w-full bg-teal-600 hover:bg-teal-700 text-white py-6 text-lg"
-                >
-                  {loading ? 'Confirming...' : 'Confirm Booking'}
-                </Button>
-              )}
+              <Button
+                onClick={isPaidService ? handleProceedToPayment : handleConfirmBooking}
+                disabled={loading}
+                className="w-full bg-teal-600 hover:bg-teal-700 text-white py-6 text-lg"
+              >
+                {loading
+                  ? (isPaidService ? 'Processing...' : 'Confirming...')
+                  : (isPaidService ? 'Proceed to Payment' : 'Confirm Booking')
+                }
+              </Button>
             </div>
           </div>
 
@@ -401,7 +546,7 @@ const BookingDetails = () => {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sticky top-24">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Booking Summary</h2>
-              
+
               <div className="space-y-4">
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Service</p>
@@ -457,7 +602,7 @@ const BookingDetails = () => {
                     <div className="flex items-center gap-2 mt-2">
                       <DollarSign className="h-5 w-5 text-gray-400" />
                       <p className="text-xl font-bold text-teal-600">
-                        ₹{appointment.advance_payment_amount}
+                        ₹{appointment.price}
                       </p>
                     </div>
                   </div>

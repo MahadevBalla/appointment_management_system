@@ -243,12 +243,26 @@ class VerifyPaymentView(APIView):
         payment_id = request.data.get("payment_id")
         signature = request.data.get("signature")
 
-        qs = Payment.objects.filter(razorpay_order_id=order_id)
+        # Validate required fields
+        if not all([order_id, payment_id, signature]):
+            return Response(
+                {"error": "Missing required payment data"},
+                status=400
+            )
 
-        if request.user.role == "customer":
-            qs = qs.filter(booking__customer=request.user)
+        try:
+            qs = Payment.objects.filter(razorpay_order_id=order_id)
 
-        payment = qs.select_related("booking").get()
+            if request.user.role == "customer":
+                qs = qs.filter(booking__customer=request.user)
+
+            payment = qs.select_related("booking").get()
+
+        except Payment.DoesNotExist:
+            return Response(
+                {"error": "Payment record not found"},
+                status=404
+            )
 
         client = get_razorpay_client()
 
@@ -263,7 +277,12 @@ class VerifyPaymentView(APIView):
         except SignatureVerificationError:
             payment.status = "failed"
             payment.save()
-            return Response({"error": "Invalid payment"}, status=400)
+            return Response({"error": "Invalid payment signature"}, status=400)
+        except Exception as e:
+            return Response(
+                {"error": f"Payment verification error: {str(e)}"},
+                status=400
+            )
 
         payment.razorpay_payment_id = payment_id
         payment.razorpay_signature = signature
@@ -275,11 +294,16 @@ class VerifyPaymentView(APIView):
         booking.status = "confirmed"
         booking.save(update_fields=["status"])
 
-        transaction.on_commit(
-            lambda: run_task(booking_created_task, str(booking.id))
-        )
+        # Try to send notification, but don't fail the payment if it fails
+        try:
+            transaction.on_commit(
+                lambda: run_task(booking_created_task, str(booking.id))
+            )
+        except Exception as e:
+            # Log the error but don't fail the payment verification
+            print(f"Warning: Failed to queue notification task: {e}")
 
-        return Response({"message": "Payment verified"})
+        return Response({"message": "Payment verified", "status": "success"})
 
 
 class IsOrganiserOrAdmin(permissions.BasePermission):

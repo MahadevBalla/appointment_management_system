@@ -21,6 +21,7 @@ const CustomerHome = lazy(() => import("./pgs/CustomerHome"));
 const CustomerAppointment = lazy(() => import("./pgs/CustomerAppointment"));
 const CustomerBooking = lazy(() => import("./pgs/CustomerBooking"));
 const BookingDetails = lazy(() => import("./pgs/BookingDetails"));
+const BookingConfirmation = lazy(() => import("./pgs/BookingConfirmation"));
 const CustomerProfile = lazy(() => import("./pgs/CustomerProfile"));
 const AIChatAssistant = lazy(() => import("./components/AIChatAssistant"));
 
@@ -32,17 +33,17 @@ function PrivateRoute({ children }) {
 
 function AdminRoute({ children }) {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
-  
+
   if (!isAuthenticated) {
     return <Login />;
   }
-  
+
   // Redirect customers to customer home
   if (user && user.role === 'customer') {
     window.location.href = '/customer/home';
     return null;
   }
-  
+
   return children;
 }
 
@@ -106,7 +107,7 @@ const App = () => {
                 }
               />
               <Route
-                path="/customer/booking-details"
+                path="/customer/appointment/:id/book/booking-details"
                 element={
                   <PrivateRoute>
                     <BookingDetails />
@@ -175,6 +176,14 @@ const App = () => {
                   <AdminRoute>
                     <Reporting />
                   </AdminRoute>
+                }
+              />
+              <Route
+                path="/customer/:id/success"
+                element={
+                  <PrivateRoute>
+                    <BookingConfirmation />
+                  </PrivateRoute>
                 }
               />
               <Route path="*" element={<Home />} />

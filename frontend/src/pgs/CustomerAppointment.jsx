@@ -3,16 +3,48 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Calendar, Clock, Users, Layers } from 'lucide-react';
+import { MapPin, Calendar as CalendarIcon, Clock, Users, Layers } from 'lucide-react';
+import { serviceAPI } from '../services/api';
 
 const CustomerAppointment = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { user } = useSelector((state) => state.auth);
 
-  const [selectedResource, setSelectedResource] = useState(null);
+  const [service, setService] = useState(null);
+  const [resources, setResources] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Dummy appointment data - will be fetched from backend
+  // Fetch service details
+  useEffect(() => {
+    if (id) {
+      fetchServiceDetails();
+    }
+  }, [id]);
+
+  const fetchServiceDetails = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await serviceAPI.getService(id);
+      setService(response.data);
+      
+      // Initialize resources if they exist
+      if (response.data.resources && response.data.resources.length > 0) {
+        setResources(response.data.resources);
+      }
+    } catch (error) {
+      console.error('Error fetching service:', error);
+      setError('Failed to load service details. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
+  // Dummy appointment data for fallback
   const appointmentData = {
     1: {
       id: 1,
@@ -101,20 +133,25 @@ const CustomerAppointment = () => {
     },
   };
 
-  const appointment = appointmentData[id];
+  const appointment = service || appointmentData[id];
 
-  // Redirect if not customer
-  useEffect(() => {
-    if (user && user.role !== 'customer') {
-      navigate('/customerhome');
-    }
-  }, [user, navigate]);
-
-  if (!appointment) {
+  // Loading state
+  if (loading) {
     return (
       <div className="w-full min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">Appointment not found</p>
+          <p className="text-gray-600">Loading service details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not found state
+  if (!appointment && !loading) {
+    return (
+      <div className="w-full min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">Service not found</p>
           <Button onClick={() => navigate('/customer/home')}>
             Back to Home
           </Button>
@@ -124,19 +161,7 @@ const CustomerAppointment = () => {
   }
 
   const handleBookResource = (resource) => {
-    // Store in sessionStorage as backup
-    sessionStorage.setItem('bookingData', JSON.stringify({
-      appointment,
-      resource
-    }));
-    
-    // Navigate to booking/schedule selection page
-    navigate(`/customer/appointment/${id}/book`, { 
-      state: { 
-        appointment: appointment,
-        resource: resource 
-      } 
-    });
+    setSelectedResource(resource);
   };
 
   return (
@@ -171,17 +196,18 @@ const CustomerAppointment = () => {
                 <Badge
                   variant="outline"
                   className={
-                    appointment.type === 'Paid'
+                    appointment.advance_payment_required
                       ? 'bg-yellow-50 text-yellow-700 border-yellow-300'
                       : 'bg-green-50 text-green-700 border-green-300'
                   }
                 >
-                  {appointment.type} - {appointment.price}
+                  {appointment.advance_payment_required ? 'Paid' : 'Free'}
+                  {appointment.price > 0 && ` - ₹${parseFloat(appointment.price).toFixed(2)}`}
                 </Badge>
               </div>
 
               <p className="text-gray-600 italic">
-                {appointment.introMessage}
+                {appointment.introduction_message || appointment.introMessage}
               </p>
 
               <p className="text-gray-700">
@@ -191,40 +217,18 @@ const CustomerAppointment = () => {
               {/* Details Grid */}
               <div className="grid grid-cols-2 gap-4 pt-4">
                 <div className="flex items-start gap-2">
-                  <MapPin className="h-5 w-5 text-teal-600 mt-0.5" />
-                  <div>
-                    <div className="font-medium text-gray-900">Location</div>
-                    <div className="text-sm text-gray-600">{appointment.location}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2">
                   <Clock className="h-5 w-5 text-teal-600 mt-0.5" />
                   <div>
                     <div className="font-medium text-gray-900">Duration</div>
-                    <div className="text-sm text-gray-600">{appointment.duration}</div>
+                    <div className="text-sm text-gray-600">{appointment.duration_minutes || appointment.duration} minutes</div>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-2">
-                  <Calendar className="h-5 w-5 text-teal-600 mt-0.5" />
+                  <Users className="h-5 w-5 text-teal-600 mt-0.5" />
                   <div>
-                    <div className="font-medium text-gray-900">Availability</div>
-                    <div className="text-sm text-gray-600">{appointment.availability}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2">
-                  {appointment.resourceType === 'user' ? (
-                    <Users className="h-5 w-5 text-teal-600 mt-0.5" />
-                  ) : (
-                    <Layers className="h-5 w-5 text-teal-600 mt-0.5" />
-                  )}
-                  <div>
-                    <div className="font-medium text-gray-900">Type</div>
-                    <div className="text-sm text-gray-600">
-                      {appointment.resourceType === 'user' ? 'Professional Service' : 'Resource Booking'}
-                    </div>
+                    <div className="font-medium text-gray-900">Capacity</div>
+                    <div className="text-sm text-gray-600">{appointment.capacity_per_slot || 1} per slot</div>
                   </div>
                 </div>
               </div>
@@ -235,73 +239,75 @@ const CustomerAppointment = () => {
         {/* Available Resources Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            Available {appointment.resourceType === 'user' ? 'Professionals' : 'Resources'}
+            Available {appointment.resource_type === 'user' ? 'Professionals' : 'Resources'}
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {appointment.resources.map((resource) => (
-              <div
-                key={resource.id}
-                className="border-2 border-gray-200 rounded-lg p-6 hover:border-teal-400 transition-all"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-2xl font-bold text-teal-600">
-                        {resource.id}
-                      </span>
-                      <h3 className="text-xl font-semibold text-gray-900">
-                        {resource.name}
-                      </h3>
+          {resources.length === 0 ? (
+            <p className="text-gray-600">No resources available for this service.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {resources.map((resource) => (
+                <div
+                  key={resource.id}
+                  className="border-2 border-gray-200 rounded-lg p-6 hover:border-teal-400 transition-all"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-xl font-semibold text-gray-900">
+                          {resource.name}
+                        </h3>
+                      </div>
+                      {resource.email && (
+                        <p className="text-sm text-gray-600">{resource.email}</p>
+                      )}
                     </div>
                   </div>
-                </div>
 
-                {/* Resource Details */}
-                <div className="space-y-2 mb-6">
-                  {appointment.resourceType === 'user' ? (
-                    <>
-                      <div className="text-sm">
-                        <span className="font-medium text-gray-700">Specialization:</span>
-                        <span className="text-gray-600 ml-2">{resource.specialization}</span>
-                      </div>
-                      <div className="text-sm">
-                        <span className="font-medium text-gray-700">Experience:</span>
-                        <span className="text-gray-600 ml-2">{resource.experience}</span>
-                      </div>
-                      <div className="text-sm">
-                        <span className="font-medium text-gray-700">Available:</span>
-                        <span className="text-gray-600 ml-2">{resource.availability}</span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="text-sm">
-                        <span className="font-medium text-gray-700">Surface:</span>
-                        <span className="text-gray-600 ml-2">{resource.surface}</span>
-                      </div>
-                      <div className="text-sm">
-                        <span className="font-medium text-gray-700">Capacity:</span>
-                        <span className="text-gray-600 ml-2">{resource.capacity}</span>
-                      </div>
-                      <div className="text-sm">
-                        <span className="font-medium text-gray-700">Features:</span>
-                        <span className="text-gray-600 ml-2">{resource.features}</span>
-                      </div>
-                    </>
-                  )}
-                </div>
+                  {/* Resource Details */}
+                  <div className="space-y-2 mb-6">
+                    {appointment.resource_type === 'user' ? (
+                      <>
+                        {resource.specialization && (
+                          <div className="text-sm">
+                            <span className="font-medium text-gray-700">Specialization:</span>
+                            <span className="text-gray-600 ml-2">{resource.specialization}</span>
+                          </div>
+                        )}
+                        {resource.experience && (
+                          <div className="text-sm">
+                            <span className="font-medium text-gray-700">Experience:</span>
+                            <span className="text-gray-600 ml-2">{resource.experience}</span>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {resource.description && (
+                          <div className="text-sm text-gray-600">
+                            {resource.description}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
 
-                {/* Book Button */}
-                <Button
-                  onClick={() => handleBookResource(resource)}
-                  className="w-full bg-teal-600 hover:bg-teal-700 text-white"
-                >
-                  Book {resource.name}
-                </Button>
-              </div>
-            ))}
-          </div>
+                  {/* Book Button */}
+                  <Button
+                    onClick={() => navigate(`/customer/appointment/${id}/book`, { 
+                      state: { 
+                        appointment: appointment, 
+                        resource: resource 
+                      } 
+                    })}
+                    className="w-full bg-teal-600 hover:bg-teal-700 text-white"
+                  >
+                    Book with {resource.name}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>
