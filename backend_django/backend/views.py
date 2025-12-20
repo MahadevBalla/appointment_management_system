@@ -1,7 +1,9 @@
+from django.contrib.admin import action
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import get_user_model
 from django_ratelimit.decorators import ratelimit
-from rest_framework import generics, permissions, viewsets
+from rest_framework import generics, permissions, viewsets, status
+from rest_framework.decorators import action
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
@@ -167,10 +169,10 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 
 class IsOrganiserOrAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
-        return (
-            request.user.is_authenticated
-            and request.user.role in ["organiser", "admin"]
-        )
+        return request.user.is_authenticated and request.user.role in [
+            "organiser",
+            "admin",
+        ]
 
 
 class ServiceViewSet(viewsets.ModelViewSet):
@@ -207,6 +209,15 @@ class BookingViewSet(viewsets.ModelViewSet):
             return Booking.objects.filter(service__organiser=user)
         return Booking.objects.filter(customer=user)
 
+    @action(detail=True, methods=["patch"], url_path="cancel")
+    def cancel(self, request, pk=None):
+        booking = self.get_object()
+        serializers = self.get_serializer()
+        serializers.cancel_booking(booking, request.user)
+        return Response(
+            {"id": booking.id, "status": booking.status}, status=status.HTTP_200_OK
+        )
+
 
 class AvailabilityView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -220,15 +231,17 @@ class AvailabilityView(APIView):
                 is_active=True,
             )
 
-            return Response([
-                {
-                    "id": str(slot.id),
-                    "start": slot.start_datetime,
-                    "end": slot.end_datetime,
-                    "available": slot.booked_count < slot.capacity,
-                }
-                for slot in slots
-            ])
+            return Response(
+                [
+                    {
+                        "id": str(slot.id),
+                        "start": slot.start_datetime,
+                        "end": slot.end_datetime,
+                        "available": slot.booked_count < slot.capacity,
+                    }
+                    for slot in slots
+                ]
+            )
         except Exception as e:
             return Response({"error": str(e)}, status=400)
 
@@ -239,18 +252,22 @@ class DashboardStatsView(APIView):
     def get(self, request):
         user = request.user
         if user.role == "admin":
-            return Response({
-                "total_users": User.objects.count(),
-                "total_services": Service.objects.count(),
-                "total_bookings": Booking.objects.count(),
-            })
+            return Response(
+                {
+                    "total_users": User.objects.count(),
+                    "total_services": Service.objects.count(),
+                    "total_bookings": Booking.objects.count(),
+                }
+            )
 
         services = Service.objects.filter(organiser=user)
-        return Response({
-            "my_services": services.count(),
-            "my_bookings": Booking.objects.filter(service__in=services).count(),
-            "pending_bookings": Booking.objects.filter(
-                service__in=services,
-                status="pending",
-            ).count(),
-        })
+        return Response(
+            {
+                "my_services": services.count(),
+                "my_bookings": Booking.objects.filter(service__in=services).count(),
+                "pending_bookings": Booking.objects.filter(
+                    service__in=services,
+                    status="pending",
+                ).count(),
+            }
+        )
