@@ -155,7 +155,7 @@ class WorkingHours(models.Model):
             (5, "Sat"),
             (6, "Sun"),
         ],
-        db_index=True
+        db_index=True,
     )
 
     start_time = models.TimeField()
@@ -205,7 +205,6 @@ class Slot(models.Model):
                 condition=models.Q(is_active=True),
             ),
         ]
-
 
 
 class Booking(models.Model):

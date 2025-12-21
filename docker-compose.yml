@@ -1,0 +1,64 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./backend_django
+    container_name: app_backend
+    env_file:
+      - ./backend_django/.env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - rabbitmq
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend/
+    container_name: app_frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+  
+  redis:
+    image: redis:7
+    container_name: app_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: app_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: unless-stopped
+
+  celery_worker:
+    build: ./backend_django
+    container_name: app_celery_worker
+    command: celery -A config worker -l info
+    env_file:
+      - ./backend_django/.env
+    depends_on:
+      - redis
+      - rabbitmq
+    restart: unless-stopped
+
+  flower:
+    build: ./backend_django
+    container_name: app_flower
+    command: celery -A config flower --port=5555
+    env_file:
+      - ./backend_django/.env
+    ports:
+      - "5555:5555"
+    depends_on:
+      - rabbitmq
+      - redis
+    restart: unless-stopped
