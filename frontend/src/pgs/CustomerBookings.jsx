@@ -69,6 +69,41 @@ const CustomerBookings = () => {
     setDetailsDialog(true);
   };
 
+  const handleCancelBooking = async (bookingId) => {
+    if (!window.confirm('Are you sure you want to cancel this booking?')) {
+      return;
+    }
+
+    try {
+      setError('');
+      const token = localStorage.getItem("authTokens")
+        ? JSON.parse(localStorage.getItem("authTokens")).access
+        : sessionStorage.getItem("authTokens")
+          ? JSON.parse(sessionStorage.getItem("authTokens")).access
+          : null;
+
+      const response = await fetch(`http://localhost:8000/api/bookings/${bookingId}/cancel/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        alert('Booking cancelled successfully!');
+        fetchBookings(); // Refresh the list
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.detail || errorData.error || 'Failed to cancel booking';
+        setError(errorMessage);
+      }
+    } catch (error) {
+      console.error('Error cancelling booking:', error);
+      setError('Error cancelling booking. Please try again.');
+    }
+  };
+
   const getStatusBadgeColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'confirmed':
@@ -224,7 +259,7 @@ const CustomerBookings = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex justify-end">
+                        <div className="flex justify-end gap-2">
                           <Button
                             variant="outline"
                             size="sm"
@@ -234,6 +269,16 @@ const CustomerBookings = () => {
                             <FileText className="h-4 w-4" />
                             View Details
                           </Button>
+                          {booking.status !== 'cancelled' && booking.status !== 'completed' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCancelBooking(booking.id)}
+                              className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+                            >
+                              Cancel
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

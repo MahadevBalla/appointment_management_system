@@ -94,20 +94,25 @@ const BookingConfirmation = () => {
             setCancelling(true);
             try {
                 const response = await fetch(`http://localhost:8000/api/bookings/${id}/cancel/`, {
-                    method: 'POST',
+                    method: 'PATCH',
                     headers: {
-                        'Authorization': `Bearer ${getAuthToken()}`
+                        'Authorization': `Bearer ${getAuthToken()}`,
+                        'Content-Type': 'application/json'
                     }
                 });
 
                 if (response.ok) {
-                    navigate('/customerhome');
+                    const data = await response.json();
+                    alert('Booking cancelled successfully!');
+                    navigate('/customerbookings');
                 } else {
-                    alert('Failed to cancel booking');
+                    const errorData = await response.json().catch(() => ({}));
+                    const errorMessage = errorData.detail || errorData.error || 'Failed to cancel booking';
+                    alert(errorMessage);
                 }
             } catch (error) {
                 console.error('Error cancelling booking:', error);
-                alert('Error cancelling booking');
+                alert('Error cancelling booking. Please try again.');
             } finally {
                 setCancelling(false);
             }
@@ -117,43 +122,102 @@ const BookingConfirmation = () => {
     const handleGoogleCalendar = () => {
         if (!bookingData) return;
 
-        const eventTitle = encodeURIComponent(`${bookingData.appointment.name} - ${bookingData.resource.name}`);
-        const eventDetails = encodeURIComponent(`Booking at ${bookingData.venue.name}`);
-        const eventLocation = encodeURIComponent(`${bookingData.venue.address}, ${bookingData.venue.city}, ${bookingData.venue.state}`);
+        try {
+            const eventTitle = encodeURIComponent(`${bookingData.appointment.name} - ${bookingData.resource.name}`);
+            const eventDetails = encodeURIComponent(`Booking at ${bookingData.venue.name}`);
+            const eventLocation = encodeURIComponent(`${bookingData.venue.address}, ${bookingData.venue.city}, ${bookingData.venue.state}`);
 
-        // Parse date and time
-        // Assuming selectedTime format is "HH:MM:SS - HH:MM:SS"
-        const [startTimeStr, endTimeStr] = bookingData.selectedTime.split(' - ');
-        const dateStr = bookingData.selectedDate;
+            // Parse the time strings properly
+            const [startTimeStr, endTimeStr] = bookingData.selectedTime.split(' - ');
+            
+            // Convert 12-hour format to 24-hour format
+            const convertTo24Hour = (time12h) => {
+                const [time, modifier] = time12h.trim().split(' ');
+                let [hours, minutes] = time.split(':');
+                
+                if (hours === '12') {
+                    hours = '00';
+                }
+                
+                if (modifier === 'PM') {
+                    hours = parseInt(hours, 10) + 12;
+                }
+                
+                return `${hours.toString().padStart(2, '0')}:${minutes}:00`;
+            };
 
-        const startDateTime = new Date(`${dateStr}T${startTimeStr}`);
-        const endDateTime = new Date(`${dateStr}T${endTimeStr}`);
+            const startTime24 = convertTo24Hour(startTimeStr);
+            const endTime24 = convertTo24Hour(endTimeStr);
 
-        const startTime = startDateTime.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-        const endTime = endDateTime.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+            const startDateTime = new Date(`${bookingData.selectedDate}T${startTime24}`);
+            const endDateTime = new Date(`${bookingData.selectedDate}T${endTime24}`);
 
-        const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${eventTitle}&dates=${startTime}/${endTime}&details=${eventDetails}&location=${eventLocation}`;
-        window.open(googleCalendarUrl, '_blank');
+            // Validate dates
+            if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+                console.error('Invalid date/time format');
+                alert('Unable to create calendar event. Invalid date or time.');
+                return;
+            }
+
+            const startTime = startDateTime.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+            const endTime = endDateTime.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+            const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${eventTitle}&dates=${startTime}/${endTime}&details=${eventDetails}&location=${eventLocation}`;
+            window.open(googleCalendarUrl, '_blank');
+        } catch (error) {
+            console.error('Error creating Google Calendar event:', error);
+            alert('Unable to create calendar event. Please try again.');
+        }
     };
 
     const handleOutlookCalendar = () => {
         if (!bookingData) return;
 
-        const eventTitle = encodeURIComponent(`${bookingData.appointment.name} - ${bookingData.resource.name}`);
-        const eventDetails = encodeURIComponent(`Booking at ${bookingData.venue.name}`);
-        const eventLocation = encodeURIComponent(`${bookingData.venue.address}, ${bookingData.venue.city}, ${bookingData.venue.state}`);
+        try {
+            const eventTitle = encodeURIComponent(`${bookingData.appointment.name} - ${bookingData.resource.name}`);
+            const eventDetails = encodeURIComponent(`Booking at ${bookingData.venue.name}`);
+            const eventLocation = encodeURIComponent(`${bookingData.venue.address}, ${bookingData.venue.city}, ${bookingData.venue.state}`);
 
-        const [startTimeStr, endTimeStr] = bookingData.selectedTime.split(' - ');
-        const dateStr = bookingData.selectedDate;
+            const [startTimeStr, endTimeStr] = bookingData.selectedTime.split(' - ');
+            
+            // Convert 12-hour format to 24-hour format
+            const convertTo24Hour = (time12h) => {
+                const [time, modifier] = time12h.trim().split(' ');
+                let [hours, minutes] = time.split(':');
+                
+                if (hours === '12') {
+                    hours = '00';
+                }
+                
+                if (modifier === 'PM') {
+                    hours = parseInt(hours, 10) + 12;
+                }
+                
+                return `${hours.toString().padStart(2, '0')}:${minutes}:00`;
+            };
 
-        const startDateTime = new Date(`${dateStr}T${startTimeStr}`);
-        const endDateTime = new Date(`${dateStr}T${endTimeStr}`);
+            const startTime24 = convertTo24Hour(startTimeStr);
+            const endTime24 = convertTo24Hour(endTimeStr);
 
-        const startTime = startDateTime.toISOString();
-        const endTime = endDateTime.toISOString();
+            const startDateTime = new Date(`${bookingData.selectedDate}T${startTime24}`);
+            const endDateTime = new Date(`${bookingData.selectedDate}T${endTime24}`);
 
-        const outlookUrl = `https://outlook.live.com/calendar/0/deeplink/compose?subject=${eventTitle}&body=${eventDetails}&location=${eventLocation}&startdt=${startTime}&enddt=${endTime}`;
-        window.open(outlookUrl, '_blank');
+            // Validate dates
+            if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+                console.error('Invalid date/time format');
+                alert('Unable to create calendar event. Invalid date or time.');
+                return;
+            }
+
+            const startTime = startDateTime.toISOString();
+            const endTime = endDateTime.toISOString();
+
+            const outlookUrl = `https://outlook.live.com/calendar/0/deeplink/compose?subject=${eventTitle}&body=${eventDetails}&location=${eventLocation}&startdt=${startTime}&enddt=${endTime}`;
+            window.open(outlookUrl, '_blank');
+        } catch (error) {
+            console.error('Error creating Outlook Calendar event:', error);
+            alert('Unable to create calendar event. Please try again.');
+        }
     };
 
     const formatDate = (dateString) => {
