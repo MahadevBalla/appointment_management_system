@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { DatePicker } from '@mantine/dates';
-import { Calendar as CalendarIcon, Clock, Users } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Users, RefreshCw } from 'lucide-react';
 import '@mantine/dates/styles.css';
 import { serviceAPI } from '../services/api';
 
@@ -47,12 +47,25 @@ const CustomerBooking = () => {
   const [manageCapacity, setManageCapacity] = useState(false);
   const [availableSlots, setAvailableSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [lastFetchTime, setLastFetchTime] = useState(null);
 
   // Fetch available slots when date changes
   useEffect(() => {
     if (selectedDate && id) {
       fetchAvailableSlots();
     }
+  }, [selectedDate, id]);
+
+  // Auto-refresh slots every 30 seconds when a date is selected
+  useEffect(() => {
+    if (!selectedDate || !id) return;
+
+    const intervalId = setInterval(() => {
+      console.log('Auto-refreshing slots...');
+      fetchAvailableSlots();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(intervalId);
   }, [selectedDate, id]);
 
   const fetchAvailableSlots = async () => {
@@ -65,11 +78,18 @@ const CustomerBooking = () => {
       const response = await serviceAPI.getAvailability(id, dateStr);
       console.log('Slots response:', response.data);
       setAvailableSlots(response.data || []);
+      setLastFetchTime(new Date());
     } catch (error) {
       console.error('Error fetching slots:', error);
       setAvailableSlots([]);
     } finally {
       setLoadingSlots(false);
+    }
+  };
+
+  const handleRefreshSlots = () => {
+    if (selectedDate && id) {
+      fetchAvailableSlots();
     }
   };
 
@@ -137,7 +157,7 @@ const CustomerBooking = () => {
             onClick={() => navigate(`/customer/appointment/${id}`)}
             className="text-gray-600 hover:text-gray-900"
           >
-            ← Back to Service Details
+            ←
           </Button>
         </div>
 
@@ -198,9 +218,34 @@ const CustomerBooking = () => {
 
             {/* Step 2: Select Time Slot */}
             <div className="mb-8">
-              <div className="flex items-center gap-2 mb-4">
-                <Clock className="h-5 w-5 text-teal-600" />
-                <h2 className="text-lg font-semibold text-gray-900">Step 2: Select Time Slot</h2>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-teal-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">Step 2: Select Time Slot</h2>
+                </div>
+                {selectedDate && (
+                  <div className="flex items-center gap-3">
+                    {lastFetchTime && (
+                      <span className="text-xs text-gray-500">
+                        Updated: {lastFetchTime.toLocaleTimeString('en-US', { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </span>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRefreshSlots}
+                      disabled={loadingSlots}
+                      className="flex items-center gap-2"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${loadingSlots ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </Button>
+                  </div>
+                )}
               </div>
               
               {!selectedDate ? (

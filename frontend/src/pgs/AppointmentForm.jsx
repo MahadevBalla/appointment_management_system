@@ -429,7 +429,7 @@ const AppointmentForm = () => {
         await serviceAPI.createService(serviceData);
       }
 
-      navigate('/dashboard');
+      navigate('/admindashboard');
     } catch (error) {
       console.error('Error saving service:', error);
       setError(error.response?.data?.error || 'Failed to save service. Please try again.');
@@ -570,63 +570,6 @@ const AppointmentForm = () => {
 
   return (
     <div className="w-full min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <img src="/logo-white.png" alt="Logo" className="h-8 w-8" />
-                <span className="text-xl font-bold text-teal-600">NeoDermaScan</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/reporting')}
-                className="flex items-center gap-2"
-              >
-                <BarChart3 className="h-4 w-4" />
-                Reporting
-              </Button>
-              
-              {/* Settings Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <SettingsIcon className="h-4 w-4" />
-                    Settings
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => navigate('/settings/users')}>
-                    Users
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/settings/resources')}>
-                    Resources
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/meetings')}
-                className="flex items-center gap-2"
-              >
-                <Calendar className="h-4 w-4" />
-                Meetings
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Error Alert */}

@@ -93,17 +93,41 @@ const Dashboard = () => {
         ? bookingsResponse.data 
         : (bookingsResponse.data?.results || []);
       
+      console.log('Bookings for counting:', bookings);
+      
       const counts = {};
+      const now = new Date();
+      
       for (const service of servicesList) {
-        const upcoming = bookings.filter(
-          (booking) =>
-            (booking.service === service.id || booking.service_id === service.id) &&
-            booking.status === 'confirmed' &&
-            booking.slot &&
-            new Date(booking.slot.start_datetime) > new Date()
-        );
+        const upcoming = bookings.filter((booking) => {
+          // Check if booking belongs to this service
+          const belongsToService = booking.service === service.id || 
+                                   booking.service_id === service.id ||
+                                   String(booking.service) === String(service.id);
+          
+          if (!belongsToService) return false;
+          
+          // Check if booking is confirmed
+          if (booking.status !== 'confirmed') return false;
+          
+          // Get start datetime from either slot object or slot_details
+          let startDateTime = null;
+          if (booking.slot_details?.start_datetime) {
+            startDateTime = booking.slot_details.start_datetime;
+          } else if (booking.slot?.start_datetime) {
+            startDateTime = booking.slot.start_datetime;
+          }
+          
+          if (!startDateTime) return false;
+          
+          // Check if booking is in the future
+          return new Date(startDateTime) > now;
+        });
+        
         counts[service.id] = upcoming.length;
+        console.log(`Service ${service.name} (${service.id}): ${upcoming.length} upcoming bookings`);
       }
+      
       setUpcomingCounts(counts);
     } catch (err) {
       console.error('Error fetching bookings:', err);

@@ -175,7 +175,7 @@ const CustomerAppointment = () => {
             onClick={() => navigate('/customer/home')}
             className="text-gray-600 hover:text-gray-900"
           >
-            ← Back to Appointments
+            ←
           </Button>
         </div>
 

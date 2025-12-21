@@ -38,12 +38,6 @@ const BookingConfirmation = () => {
                 }
 
                 const data = await response.json();
-                console.log('Booking API response:', data);
-
-                // Validate required data
-                if (!data.slot_details || !data.service_details) {
-                    throw new Error('Incomplete booking data received');
-                }
 
                 // Transform API data to match component structure
                 const slot = data.slot_details;
@@ -84,7 +78,7 @@ const BookingConfirmation = () => {
                 setBookingData(transformedData);
             } catch (err) {
                 console.error('Error fetching booking:', err);
-                setError(err.message || 'Failed to load booking details');
+                setError('Failed to load booking details');
             } finally {
                 setLoading(false);
             }
@@ -333,7 +327,7 @@ const BookingConfirmation = () => {
                         variant="ghost"
                         className="text-teal-600 hover:text-teal-700"
                     >
-                        ← Back to Dashboard
+                        ←
                     </Button>
                 </div>
             </main>

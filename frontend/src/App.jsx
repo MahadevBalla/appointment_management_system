@@ -52,7 +52,6 @@ const App = () => {
   const dispatch = useDispatch();
   const location = useLocation();
   const { tokens } = useSelector(state => state.auth);
-  const hideNavBar = location.pathname.includes('/admindashboard/') && location.pathname !== '/admindashboard';
 
   useEffect(() => {
     let interval;
@@ -66,8 +65,8 @@ const App = () => {
   return (
     <MantineProvider withGlobalStyles withNormalizeCSS>
       <div className="relative flex flex-col min-h-screen">
-        {!hideNavBar && <NavBar />}
-        <div className={`flex items-center justify-center flex-grow ${hideNavBar ? '' : 'pt-20'} bg-gray-50`}>
+        <NavBar />
+        <div className={`flex items-center justify-center flex-grow pt-20 bg-gray-50`}>
           <Suspense fallback={<div className="p-6 text-center">Loading...</div>}>
             <Routes>
               <Route path="/" element={<Home />} />

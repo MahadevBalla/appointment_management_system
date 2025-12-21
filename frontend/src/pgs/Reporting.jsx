@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -16,44 +17,97 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { 
-  Settings as SettingsIcon, 
+import {
+  Settings as SettingsIcon,
   BarChart3,
-  Calendar
+  Calendar,
+  ArrowLeft
 } from 'lucide-react';
 
 const Reporting = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useSelector((state) => state.auth);
 
   // Tab state
   const [activeTab, setActiveTab] = useState('Appointmanrts');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Dummy appointments data
-  const [appointments, setAppointments] = useState([
-    {
-      id: 1,
-      name: 'Vipin jindal',
-      time: 'Dec 12 4:00',
-      resource: '',
-      answers: '+919874654632',
-      selected: false,
-    },
-    {
-      id: 2,
-      name: 'Tarak gor',
-      time: 'Dec 13 9:00',
-      resource: 'Court 1',
-      answers: '+914787998465',
-      selected: false,
-    },
-  ]);
+  // Appointments/bookings data from API
+  const [appointments, setAppointments] = useState([]);
+
+  // Helper function to get auth token
+  const getAuthToken = () => {
+    const tokens = localStorage.getItem("authTokens")
+      ? JSON.parse(localStorage.getItem("authTokens"))
+      : sessionStorage.getItem("authTokens")
+        ? JSON.parse(sessionStorage.getItem("authTokens"))
+        : null;
+    return tokens?.access || null;
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    fetchAppointments();
+  }, [isAuthenticated, navigate]);
+
+  const fetchAppointments = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const response = await fetch('http://localhost:8000/api/admin/bookings/', {
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch bookings');
+      }
+
+      const data = await response.json();
+      console.log('Bookings data:', data);
+      
+      // Transform API data to match appointments format
+      const transformedAppointments = data.map(booking => ({
+        id: booking.id,
+        name: booking.customer_name || 'N/A',
+        time: booking.slot_details?.start_datetime 
+          ? new Date(booking.slot_details.start_datetime).toLocaleString('en-US', { 
+              month: 'short', 
+              day: 'numeric', 
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: false 
+            })
+          : 'N/A',
+        resource: booking.resource_details?.name || '',
+        answers: booking.customer_phone || Object.values(booking.answers || {}).join(', ') || '',
+        selected: false,
+        service: booking.service_details?.name || 'N/A',
+        status: booking.status
+      }));
+
+      setAppointments(transformedAppointments);
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      setError('Failed to load appointments. Please try again.');
+      setAppointments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSelectAll = (checked) => {
     setAppointments(appointments.map(apt => ({ ...apt, selected: checked })));
   };
 
   const handleSelectAppointment = (id, checked) => {
-    setAppointments(appointments.map(apt => 
+    setAppointments(appointments.map(apt =>
       apt.id === id ? { ...apt, selected: checked } : apt
     ));
   };
@@ -61,82 +115,51 @@ const Reporting = () => {
   const allSelected = appointments.length > 0 && appointments.every(apt => apt.selected);
   const someSelected = appointments.some(apt => apt.selected) && !allSelected;
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading appointments...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <img src="/logo-white.png" alt="Logo" className="h-8 w-8" />
-                <span className="text-xl font-bold text-teal-600">NeoDermaScan</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/reporting')}
-                className="flex items-center gap-2"
-              >
-                <BarChart3 className="h-4 w-4" />
-                Reporting
-              </Button>
-              
-              {/* Settings Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <SettingsIcon className="h-4 w-4" />
-                    Settings
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => navigate('/settings/users')}>
-                    Users
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/settings/resources')}>
-                    Resources
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/meetings')}
-                className="flex items-center gap-2"
-              >
-                <Calendar className="h-4 w-4" />
-                Meetings
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Meetings</h1>
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/admindashboard')}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Reporting</h1>
+            </div>
+          </div>
         </div>
+
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md text-red-800">
+            {error}
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="mb-6">
           <div className="border-b border-gray-200">
             <button
               onClick={() => setActiveTab('Appointmanrts')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'Appointmanrts'
+              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'Appointmanrts'
                   ? 'border-teal-600 text-teal-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
               Appointmanrts
             </button>
