@@ -30,7 +30,7 @@ import {
   Search,
   ArrowLeft
 } from 'lucide-react';
-import { resourceAPI } from '../services/api';
+import { resourceAPI, serviceAPI } from '../services/api';
 
 const Resources = () => {
   const navigate = useNavigate();
@@ -42,6 +42,7 @@ const Resources = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [services, setServices] = useState([]);
   
   // Form dialog state
   const [formDialog, setFormDialog] = useState({ open: false, mode: 'create', resource: null });
@@ -63,6 +64,7 @@ const Resources = () => {
       return;
     }
     fetchResources();
+    fetchServices();
   }, [isAuthenticated, navigate]);
 
   useEffect(() => {
@@ -96,6 +98,18 @@ const Resources = () => {
       setFilteredResources([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchServices = async () => {
+    try {
+      const response = await serviceAPI.getServices();
+      const servicesList = Array.isArray(response.data)
+        ? response.data
+        : response.data?.results || [];
+      setServices(servicesList);
+    } catch (error) {
+      console.error('Error fetching services:', error);
     }
   };
 
@@ -359,16 +373,21 @@ const Resources = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="service">Service ID</Label>
-                <Input
+                <Label htmlFor="service">Service *</Label>
+                <select
                   id="service"
                   value={formData.service}
                   onChange={(e) => setFormData({ ...formData, service: e.target.value })}
-                  placeholder="Enter service UUID"
-                />
-                <p className="text-xs text-gray-500">
-                  Optional: Link this resource to a specific service
-                </p>
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  required
+                >
+                  <option value="">Select a service</option>
+                  {services.map((service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-2">
@@ -387,14 +406,10 @@ const Resources = () => {
 
             <DialogFooter>
               <Button
-                onClick={() => navigate('/admindashboard')}
-                className="bg-teal-600 text-white hover:bg-teal-700"
-              >
-                Save
-              </Button>
-              <Button
                 variant="outline"
-                onClick={() => navigate('/admindashboard')}
+                onClick={() => setFormDialog({ open: false, mode: 'create', resource: null })}
+                disabled={saving}
+                type="button"
               >
                 Cancel
               </Button>

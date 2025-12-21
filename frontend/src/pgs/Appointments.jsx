@@ -21,6 +21,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Alert,
   AlertDescription,
 } from '@/components/ui/alert';
@@ -309,15 +315,26 @@ const Dashboard = () => {
               <BarChart3 className="h-4 w-4" />
               Reporting
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/settings/resources')}
-              className="flex items-center gap-2"
-            >
-              <Settings className="h-4 w-4" />
-              Settings
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => navigate('/settings/users')}>
+                  Users
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/settings/resources')}>
+                  Resources
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button
               onClick={() => setCreateDialog(true)}
               className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"

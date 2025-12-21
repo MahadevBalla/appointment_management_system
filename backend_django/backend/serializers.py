@@ -118,6 +118,7 @@ class UserSerializer(serializers.ModelSerializer):
             "notification_preference",
             "notification_consent",
             "is_verified",
+            "is_active",
         ]
         read_only_fields = ["id", "email", "role", "is_verified"]
 
@@ -286,10 +287,7 @@ class BookingSerializer(serializers.ModelSerializer):
             "name": obj.service.name,
             "duration": obj.service.duration_minutes,
             "advance_payment_required": obj.service.advance_payment_required,
-            "venue_name": getattr(obj.service, 'venue_name', ''),
-            "venue_address": getattr(obj.service, 'venue_address', ''),
-            "venue_city": getattr(obj.service, 'venue_city', ''),
-            "venue_state": getattr(obj.service, 'venue_state', ''),
+            "location": obj.service.description,  # Using description field as location
             "manage_capacity": True,  # Default value since field doesn't exist
         }
 

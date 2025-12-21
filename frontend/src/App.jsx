@@ -20,6 +20,7 @@ const Reporting = lazy(() => import("./pgs/Reporting"));
 const CustomerHome = lazy(() => import("./pgs/CustomerHome"));
 const CustomerAppointment = lazy(() => import("./pgs/CustomerAppointment"));
 const CustomerBooking = lazy(() => import("./pgs/CustomerBooking"));
+const CustomerBookings = lazy(() => import("./pgs/CustomerBookings"));
 const BookingDetails = lazy(() => import("./pgs/BookingDetails"));
 const BookingConfirmation = lazy(() => import("./pgs/BookingConfirmation"));
 const CustomerProfile = lazy(() => import("./pgs/CustomerProfile"));
@@ -87,6 +88,14 @@ const App = () => {
                 element={
                   <PrivateRoute>
                     <CustomerHome />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/customerbookings"
+                element={
+                  <PrivateRoute>
+                    <CustomerBookings />
                   </PrivateRoute>
                 }
               />

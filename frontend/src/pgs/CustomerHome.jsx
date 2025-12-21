@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search } from 'lucide-react';
+import { Search, Calendar } from 'lucide-react';
 import { serviceAPI } from '../services/api';
 
 const CustomerHome = () => {
@@ -53,11 +53,20 @@ const CustomerHome = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Message */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome, {user?.full_name || 'Guest'}!
-          </h1>
-          <p className="text-gray-600">Browse and book available appointments</p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Welcome, {user?.full_name || 'Guest'}!
+            </h1>
+            <p className="text-gray-600">Browse and book available appointments</p>
+          </div>
+          <Button
+            onClick={() => navigate('/customerbookings')}
+            className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700"
+          >
+            <Calendar className="h-4 w-4" />
+            My Bookings
+          </Button>
         </div>
 
         {/* Search and Filter Section */}

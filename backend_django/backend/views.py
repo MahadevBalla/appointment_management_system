@@ -328,6 +328,29 @@ class AdminUserListView(generics.ListAPIView):
     queryset = User.objects.all().order_by("-created_at")
 
 
+class AdminUserToggleStatusView(generics.UpdateAPIView):
+    permission_classes = [IsAdmin]
+    serializer_class = UserSerializer
+    lookup_url_kwarg = "user_id"
+    queryset = User.objects.all()
+
+    def patch(self, request, *args, **kwargs):
+        user = self.get_object()
+        is_active = request.data.get('is_active')
+        
+        if is_active is None:
+            return Response(
+                {"error": "is_active field is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        user.is_active = is_active
+        user.save()
+        
+        serializer = self.get_serializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class AdminBookingListView(generics.ListAPIView):
     permission_classes = [IsAdmin]
     serializer_class = BookingSerializer
