@@ -20,7 +20,10 @@ from .views import (
     AdminUserListView,
     AdminBookingListView,
     AdminServiceSlotsView,
+    AdminServiceSlotsView,
     AdminBookingDeleteView,
+    AdminSlotCreateView,
+    AdminSlotDeleteView,
 )
 from .agent.views import AgentExecuteView
 
@@ -49,6 +52,8 @@ urlpatterns = [
     path("admin/users/", AdminUserListView.as_view()),
     path("admin/bookings/", AdminBookingListView.as_view()),
     path("admin/services/<int:service_id>/slots/", AdminServiceSlotsView.as_view()),
+    path("admin/services/<int:service_id>/slots/create/", AdminSlotCreateView.as_view()),
+    path("admin/slots/<int:pk>/", AdminSlotDeleteView.as_view()),
     path("admin/bookings/<uuid:booking_id>/", AdminBookingDeleteView.as_view()),
     path("", include(router.urls)),
 ]

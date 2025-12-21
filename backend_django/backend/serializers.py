@@ -422,3 +422,40 @@ class NotificationSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at", "is_sent"]
+
+
+class AdminSlotCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Slot
+        fields = [
+            "service",
+            "resource",
+            "start_datetime",
+            "end_datetime",
+            "capacity",
+            "is_active",
+        ]
+        extra_kwargs = {"resource": {"required": False}}
+
+    def validate(self, attrs):
+        start = attrs["start_datetime"]
+        end = attrs["end_datetime"]
+
+        if start >= end:
+            raise serializers.ValidationError("Start time must be before end time")
+
+        # Check for overlapping slots for the same resource
+        resource = attrs.get("resource")
+        if resource:
+            overlapping = Slot.objects.filter(
+                resource=resource,
+                start_datetime__lt=end,
+                end_datetime__gt=start,
+                is_active=True,
+            ).exists()
+            if overlapping:
+                raise serializers.ValidationError(
+                    "This resource already has a slot overlapping with this time range."
+                )
+
+        return attrs

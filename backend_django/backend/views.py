@@ -31,7 +31,9 @@ from .serializers import (
     VerifyOtpSerializer,
     PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer,
+    PasswordResetConfirmSerializer,
     AdminSlotBookingSerializer,
+    AdminSlotCreateSerializer,
 )
 from .utils import send_otp, get_razorpay_client
 from .async_tasks.tasks import booking_created_task, booking_cancelled_task
@@ -420,6 +422,83 @@ class AdminServiceSlotsView(ListAPIView):
             .prefetch_related("booking_set__customer")
             .order_by("start_datetime")
         )
+
+class AdminSlotCreateView(generics.CreateAPIView):
+    permission_classes = [IsAdmin]
+    serializer_class = AdminSlotCreateSerializer
+
+    def create(self, request, *args, **kwargs):
+        service_id = self.kwargs.get("service_id")
+        try:
+            service = Service.objects.get(id=service_id)
+        except Service.DoesNotExist:
+            return Response(
+                {"error": "Service not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Inject service into data
+        data = request.data.copy()
+        data["service"] = service.id
+        
+        # If resource is not provided, try to use the first resource of the service
+        # or leave it null if allowed
+        if "resource" not in data or not data["resource"]:
+            first_resource = service.resources.first()
+            if first_resource:
+                data["resource"] = first_resource.id
+
+        # Check for exact match to update capacity instead of creating new
+        resource_id = data.get("resource")
+        start_str = data.get("start_datetime")
+        end_str = data.get("end_datetime")
+        
+        if resource_id and start_str and end_str:
+            try:
+                from dateutil import parser
+                start_dt = parser.parse(start_str)
+                end_dt = parser.parse(end_str)
+                
+                exact_match = Slot.objects.filter(
+                    resource_id=resource_id, 
+                    start_datetime=start_dt, 
+                    end_datetime=end_dt
+                ).first()
+                
+                if exact_match:
+                    # Update capacity
+                    try:
+                        new_capacity = int(data.get("capacity", 0))
+                        exact_match.capacity += new_capacity
+                        exact_match.save()
+                        
+                        serializer = self.get_serializer(exact_match)
+                        return Response(serializer.data, status=status.HTTP_200_OK)
+                    except ValueError:
+                        pass 
+            except Exception as e:
+                print(f"Date parsing error in slot creation: {e}")
+
+        serializer = self.get_serializer(data=data)
+        if not serializer.is_valid():
+            print(f"Slot creation validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+        serializer.save(booked_count=0)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
+
+class AdminSlotDeleteView(DestroyAPIView):
+    permission_classes = [IsAdmin]
+    queryset = Slot.objects.all()
+    
+    def perform_destroy(self, instance):
+        if instance.booked_count > 0:
+            raise ValidationError(
+                "Cannot delete slot with active bookings. Please cancel bookings first."
+            )
+        instance.delete()
 
 class ResourceViewSet(viewsets.ModelViewSet):
     serializer_class = ResourceSerializer

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Calendar as CalendarIcon, Clock, Users, Layers } from 'lucide-react';
+import { MapPin, Calendar as CalendarIcon, Clock, Users, Layers, ArrowLeft } from 'lucide-react';
 import { serviceAPI } from '../services/api';
 
 const CustomerAppointment = () => {
@@ -172,10 +172,11 @@ const CustomerAppointment = () => {
         <div className="mb-6">
           <Button
             variant="ghost"
-            onClick={() => navigate('/customer/home')}
-            className="text-gray-600 hover:text-gray-900"
+            size="sm"
+            onClick={() => navigate('/customerhome')}
+            className="flex items-center gap-2"
           >
-            ←
+            <ArrowLeft className="h-4 w-4" />
           </Button>
         </div>
 

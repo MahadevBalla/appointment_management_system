@@ -136,14 +136,6 @@ const App = () => {
                 }
               />
               <Route
-                path="/admindashboard/new"
-                element={
-                  <AdminRoute>
-                    <AppointmentForm />
-                  </AdminRoute>
-                }
-              />
-              <Route
                 path="/settings/resources"
                 element={
                   <AdminRoute>

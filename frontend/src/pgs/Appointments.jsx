@@ -37,6 +37,13 @@ const Dashboard = () => {
   const [upcomingCounts, setUpcomingCounts] = useState({});
   const [deleteDialog, setDeleteDialog] = useState({ open: false, service: null });
   const [deleting, setDeleting] = useState(false);
+  const [createDialog, setCreateDialog] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newServiceData, setNewServiceData] = useState({
+    name: '',
+    duration: '',
+    location: ''
+  });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -193,6 +200,60 @@ const Dashboard = () => {
     setDeleteDialog({ open: false, service: null });
   };
 
+  const handleCreateService = async () => {
+    if (!newServiceData.name.trim() || !newServiceData.duration.trim() || !newServiceData.location.trim()) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    try {
+      setCreating(true);
+      setError('');
+
+      const durationMinutes = parseInt(newServiceData.duration);
+      if (isNaN(durationMinutes) || durationMinutes <= 0) {
+        setError('Duration must be a positive number');
+        return;
+      }
+
+      const serviceData = {
+        name: newServiceData.name,
+        duration_minutes: durationMinutes,
+        description: newServiceData.location,
+        capacity_per_slot: 1,
+        auto_assign_resource: true,
+        manual_confirmation: false,
+        advance_payment_required: false,
+        price: '0',
+        questions_schema: [],
+        is_published: false,
+      };
+
+      const response = await serviceAPI.createService(serviceData);
+      
+      setSuccess(`Service "${newServiceData.name}" created successfully!`);
+      setTimeout(() => setSuccess(''), 3000);
+      
+      // Reset form and close dialog
+      setNewServiceData({ name: '', duration: '', location: '' });
+      setCreateDialog(false);
+      
+      // Navigate to edit page
+      navigate(`/admindashboard/${response.data.id}/edit`);
+    } catch (error) {
+      console.error('Error creating service:', error);
+      setError(error.response?.data?.error || 'Failed to create service. Please try again.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleCancelCreate = () => {
+    setNewServiceData({ name: '', duration: '', location: '' });
+    setCreateDialog(false);
+    setError('');
+  };
+
   const formatDuration = (minutes) => {
     if (minutes < 60) {
       return `${minutes} min`;
@@ -258,8 +319,8 @@ const Dashboard = () => {
               Settings
             </Button>
             <Button
-              onClick={() => navigate('/admindashboard/new')}
-              className="flex items-center gap-2"
+              onClick={() => setCreateDialog(true)}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
             >
               <Plus className="h-4 w-4" />
               New Service
@@ -388,6 +449,73 @@ const Dashboard = () => {
               disabled={deleting}
             >
               {deleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Service Dialog */}
+      <Dialog open={createDialog} onOpenChange={(open) => !creating && setCreateDialog(open)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Service</DialogTitle>
+            <DialogDescription>
+              Enter the basic details for your new service. You can configure additional settings after creation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="service-name" className="text-sm font-medium">
+                Service Name *
+              </label>
+              <Input
+                id="service-name"
+                placeholder="e.g., 30-minute Consultation"
+                value={newServiceData.name}
+                onChange={(e) => setNewServiceData({ ...newServiceData, name: e.target.value })}
+                disabled={creating}
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="service-duration" className="text-sm font-medium">
+                Duration (minutes) *
+              </label>
+              <Input
+                id="service-duration"
+                type="number"
+                placeholder="e.g., 30"
+                value={newServiceData.duration}
+                onChange={(e) => setNewServiceData({ ...newServiceData, duration: e.target.value })}
+                disabled={creating}
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="service-location" className="text-sm font-medium">
+                Location *
+              </label>
+              <Input
+                id="service-location"
+                placeholder="e.g., Office, Online, Phone"
+                value={newServiceData.location}
+                onChange={(e) => setNewServiceData({ ...newServiceData, location: e.target.value })}
+                disabled={creating}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleCancelCreate}
+              disabled={creating}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateService}
+              disabled={creating}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {creating ? 'Creating...' : 'Create'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, MapPin, Users } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, MapPin, Users } from 'lucide-react';
 
 const BookingConfirmation = () => {
     const navigate = useNavigate();
@@ -327,7 +327,7 @@ const BookingConfirmation = () => {
                         variant="ghost"
                         className="text-teal-600 hover:text-teal-700"
                     >
-                        ←
+                        <ArrowLeft className="h-4 w-4 mr-2" />
                     </Button>
                 </div>
             </main>

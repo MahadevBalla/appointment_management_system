@@ -102,6 +102,8 @@ export const serviceAPI = {
   deleteService: (id) => api.delete(`/services/${id}/`),
   addQuestion: (id, questionData) => api.post(`/services/${id}/questions/`, questionData),
   getServiceSlots: (serviceId) => api.get(`/admin/services/${serviceId}/slots/`),
+  createSlot: (serviceId, slotData) => api.post(`/admin/services/${serviceId}/slots/create/`, slotData),
+  deleteSlot: (slotId) => api.delete(`/admin/slots/${slotId}/`),
   getAvailability: (serviceId, dateStr) => api.get(`/availability/${serviceId}/${dateStr}/`),
 };
 

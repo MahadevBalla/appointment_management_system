@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { DatePicker } from '@mantine/dates';
-import { Calendar as CalendarIcon, Clock, Users, RefreshCw } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Users, RefreshCw, ArrowLeft } from 'lucide-react';
 import '@mantine/dates/styles.css';
 import { serviceAPI } from '../services/api';
 
@@ -157,7 +157,7 @@ const CustomerBooking = () => {
             onClick={() => navigate(`/customer/appointment/${id}`)}
             className="text-gray-600 hover:text-gray-900"
           >
-            ←
+            <ArrowLeft className="h-4 w-4 mr-2" />
           </Button>
         </div>
 
