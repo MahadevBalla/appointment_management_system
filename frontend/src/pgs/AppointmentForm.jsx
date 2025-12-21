@@ -291,17 +291,7 @@ const AppointmentForm = () => {
       await ensureServiceCreated('openAddQuestion');
       return;
     }
-
-<<<<<<< Updated upstream
-  const handleUpdateSchedule = (id, field, value) => {
-    setSchedule(schedule.map(s =>
-      s.id === id ? { ...s, [field]: value } : s
-    ));
-  };
-
-  const handleAddQuestionClick = () => {
-=======
->>>>>>> Stashed changes
+    
     setNewQuestion({
       question: '',
       answerType: 'Single line text',
@@ -315,53 +305,6 @@ const AppointmentForm = () => {
       return;
     }
 
-<<<<<<< Updated upstream
-    const newId = questions.length > 0 ? Math.max(...questions.map(q => q.id)) + 1 : 1;
-
-    // Generate key from question text (lowercase, underscored)
-    const key = newQuestion.question.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-
-    const questionData = {
-      id: newId,
-      question: newQuestion.question,
-      answerType: newQuestion.answerType,
-      answer: '',
-      mandatory: newQuestion.mandatory,
-      key: key,
-    };
-
-    // If in edit mode, save to backend immediately
-    if (isEdit && id) {
-      try {
-        setLoading(true);
-        setError('');
-
-        const backendQuestion = {
-          key: key,
-          label: newQuestion.question,
-          type: mapFrontendTypeToBackend(newQuestion.answerType),
-          required: newQuestion.mandatory,
-        };
-
-        await serviceAPI.addQuestion(id, backendQuestion);
-
-        // Add to local state after successful API call
-        setQuestions([...questions, questionData]);
-        setDialogOpen(false);
-        setNewQuestion({
-          question: '',
-          answerType: 'Single line text',
-          mandatory: false,
-        });
-      } catch (error) {
-        console.error('Error adding question:', error);
-        setError(error.response?.data?.error || 'Failed to add question. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      // For new services, just add to local state
-=======
     // Generate key from question text
     const key = newQuestion.question.toLowerCase().replace(/[^a-z0-9]+/g, '_');
 
@@ -388,7 +331,6 @@ const AppointmentForm = () => {
         key: key,
       };
 
->>>>>>> Stashed changes
       setQuestions([...questions, questionData]);
       setDialogOpen(false);
       setNewQuestion({
@@ -446,17 +388,12 @@ const AppointmentForm = () => {
     try {
       setDeletingBooking(true);
       setError('');
-<<<<<<< Updated upstream
 
       await bookingAPI.adminDeleteBooking(deleteBookingId);
 
       // Refresh slots to show updated data
       await fetchSlots();
 
-=======
-      await bookingAPI.adminDeleteBooking(deleteBookingId);
-      await fetchSlots();
->>>>>>> Stashed changes
       setDeleteBookingId(null);
     } catch (error) {
       console.error('Error deleting booking:', error);
@@ -492,12 +429,35 @@ const AppointmentForm = () => {
       return;
     }
 
+    // Validate end time is after start time
+    if (newSlotData.endTime <= newSlotData.startTime) {
+      setError('End time must be after start time');
+      return;
+    }
+
     try {
       setSavingSlot(true);
       setError('');
 
-      const startDateTime = `${newSlotData.date}T${newSlotData.startTime}:00`;
-      const endDateTime = `${newSlotData.date}T${newSlotData.endTime}:00`;
+      // Send datetime strings directly without timezone conversion
+      // Backend stores in UTC, so we append Z to indicate UTC time
+      // This way 9:00 stays as 9:00 UTC in the database
+      const startDateTime = `${newSlotData.date}T${newSlotData.startTime}:00Z`;
+      const endDateTime = `${newSlotData.date}T${newSlotData.endTime}:00Z`;
+
+      // Check for duplicate slots (same start and end time)
+      const isDuplicate = slots.some(slot => {
+        const existingStart = slot.start_datetime;
+        const existingEnd = slot.end_datetime;
+        
+        return existingStart === startDateTime && existingEnd === endDateTime;
+      });
+
+      if (isDuplicate) {
+        setError('A slot with the same date and time already exists');
+        setSavingSlot(false);
+        return;
+      }
 
       const slotPayload = {
         start_datetime: startDateTime,
@@ -622,63 +582,6 @@ const AppointmentForm = () => {
 
   return (
     <div className="w-full min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <img src="/logo-white.png" alt="Logo" className="h-8 w-8" />
-                <span className="text-xl font-bold text-teal-600">Bookify</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/reporting')}
-                className="flex items-center gap-2"
-              >
-                <BarChart3 className="h-4 w-4" />
-                Reporting
-              </Button>
-
-              {/* Settings Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <SettingsIcon className="h-4 w-4" />
-                    Settings
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => navigate('/settings/users')}>
-                    Users
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/settings/resources')}>
-                    Resources
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/meetings')}
-                className="flex items-center gap-2"
-              >
-                <Calendar className="h-4 w-4" />
-                Meetings
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Error Alert */}
@@ -698,17 +601,6 @@ const AppointmentForm = () => {
         <div className="mb-6 flex items-center justify-end gap-3">
           <Button
             variant="outline"
-<<<<<<< Updated upstream
-            onClick={() => navigate('/admindashboard/new')}
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            New
-          </Button>
-          <Button
-            variant="outline"
-=======
->>>>>>> Stashed changes
             onClick={() => {/* Preview functionality */ }}
             className="flex items-center gap-2"
           >
@@ -943,116 +835,6 @@ const AppointmentForm = () => {
                                     minute: '2-digit'
                                   })}
                                 </span>
-<<<<<<< Updated upstream
-                                <span className={`px-2 py-1 text-xs rounded-full ${slot.booked_count >= slot.capacity
-                                    ? 'bg-red-100 text-red-700'
-                                    : slot.booked_count > 0
-                                      ? 'bg-yellow-100 text-yellow-700'
-                                      : 'bg-green-100 text-green-700'
-                                  }`}>
-                                  {slot.booked_count >= slot.capacity ? 'Full' : slot.booked_count > 0 ? 'Partial' : 'Available'}
-                                </span>
-                              </div>
-                            </div>
-
-                            {slot.bookings && slot.bookings.length > 0 && (
-                              <div className="mt-3 border-t border-gray-200 pt-3">
-                                <h4 className="text-sm font-semibold text-gray-700 mb-2">Bookings ({slot.bookings.length})</h4>
-                                <div className="space-y-2">
-                                  {slot.bookings.map((booking) => (
-                                    <div key={booking.booking_id} className="border border-gray-200 rounded-lg overflow-hidden">
-                                      <div
-                                        className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
-                                        onClick={() => toggleBookingDetails(booking.booking_id)}
-                                      >
-                                        <div className="flex items-center gap-4 flex-1">
-                                          <div className="flex items-center gap-2">
-                                            <User className="h-4 w-4 text-gray-500" />
-                                            <span className="font-medium">{booking.customer_name}</span>
-                                          </div>
-                                          <span className="text-sm text-gray-600">Qty: {booking.quantity}</span>
-                                          <span className={`px-2 py-1 text-xs rounded-full ${booking.status === 'confirmed'
-                                              ? 'bg-green-100 text-green-700'
-                                              : booking.status === 'pending'
-                                                ? 'bg-yellow-100 text-yellow-700'
-                                                : booking.status === 'cancelled'
-                                                  ? 'bg-red-100 text-red-700'
-                                                  : 'bg-blue-100 text-blue-700'
-                                            }`}>
-                                            {booking.status}
-                                          </span>
-                                        </div>
-                                        {expandedBookings[booking.booking_id] ? (
-                                          <ChevronUp className="h-4 w-4 text-gray-500" />
-                                        ) : (
-                                          <ChevronDown className="h-4 w-4 text-gray-500" />
-                                        )}
-                                      </div>
-
-                                      {expandedBookings[booking.booking_id] && (
-                                        <div className="p-4 bg-white border-t border-gray-200 space-y-3">
-                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                            <div className="flex items-center gap-2 text-sm">
-                                              <Mail className="h-4 w-4 text-gray-400" />
-                                              <span className="text-gray-600">Email:</span>
-                                              <span className="font-medium">{booking.customer_email}</span>
-                                            </div>
-                                            {booking.customer_phone && (
-                                              <div className="flex items-center gap-2 text-sm">
-                                                <Phone className="h-4 w-4 text-gray-400" />
-                                                <span className="text-gray-600">Phone:</span>
-                                                <span className="font-medium">{booking.customer_phone}</span>
-                                              </div>
-                                            )}
-                                            <div className="flex items-center gap-2 text-sm">
-                                              <Clock className="h-4 w-4 text-gray-400" />
-                                              <span className="text-gray-600">Booked:</span>
-                                              <span className="font-medium">
-                                                {new Date(booking.created_at).toLocaleString('en-US', {
-                                                  month: 'short',
-                                                  day: 'numeric',
-                                                  year: 'numeric',
-                                                  hour: '2-digit',
-                                                  minute: '2-digit'
-                                                })}
-                                              </span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-sm">
-                                              <FileText className="h-4 w-4 text-gray-400" />
-                                              <span className="text-gray-600">ID:</span>
-                                              <span className="font-mono text-xs text-gray-500">
-                                                {booking.booking_id.substring(0, 13)}...
-                                              </span>
-                                            </div>
-                                          </div>
-
-                                          {booking.answers && Object.keys(booking.answers).length > 0 && (
-                                            <div className="pt-3 border-t border-gray-100">
-                                              <h5 className="text-sm font-semibold text-gray-700 mb-2">Customer Responses</h5>
-                                              <div className="space-y-2">
-                                                {Object.entries(booking.answers).map(([key, value]) => (
-                                                  <div key={key} className="text-sm">
-                                                    <span className="text-gray-600 font-medium">{key}:</span>
-                                                    <span className="ml-2 text-gray-800">{String(value)}</span>
-                                                  </div>
-                                                ))}
-                                              </div>
-                                            </div>
-                                          )}
-
-                                          <div className="pt-3 border-t border-gray-100 flex justify-end">
-                                            <Button
-                                              variant="destructive"
-                                              size="sm"
-                                              onClick={(e) => handleDeleteBooking(booking.booking_id, e)}
-                                              className="flex items-center gap-2"
-                                            >
-                                              <Trash2 className="h-4 w-4" />
-                                              Delete Booking
-                                            </Button>
-                                          </div>
-                                        </div>
-=======
                                 <span className="text-gray-400">→</span>
                                 <span className="text-gray-600">
                                   {new Date(slot.end_datetime).toLocaleTimeString('en-US', {
@@ -1108,7 +890,6 @@ const AppointmentForm = () => {
                                         <ChevronUp className="h-4 w-4 text-gray-500" />
                                       ) : (
                                         <ChevronDown className="h-4 w-4 text-gray-500" />
->>>>>>> Stashed changes
                                       )}
                                     </div>
 
@@ -1604,3 +1385,4 @@ const AppointmentForm = () => {
 };
 
 export default AppointmentForm;
+

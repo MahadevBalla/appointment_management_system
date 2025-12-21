@@ -444,14 +444,34 @@ class AdminSlotCreateSerializer(serializers.ModelSerializer):
         if start >= end:
             raise serializers.ValidationError("Start time must be before end time")
 
-        # Check for overlapping slots for the same resource
+        # Check for exact duplicate slots (same start and end time)
+        service = attrs.get("service")
         resource = attrs.get("resource")
+        
+        duplicate = Slot.objects.filter(
+            service=service,
+            start_datetime=start,
+            end_datetime=end,
+            is_active=True,
+        )
+        if resource:
+            duplicate = duplicate.filter(resource=resource)
+        
+        if duplicate.exists():
+            raise serializers.ValidationError(
+                "A slot with the exact same date and time already exists."
+            )
+
+        # Check for overlapping slots for the same resource
         if resource:
             overlapping = Slot.objects.filter(
                 resource=resource,
                 start_datetime__lt=end,
                 end_datetime__gt=start,
                 is_active=True,
+            ).exclude(
+                start_datetime=start,
+                end_datetime=end,
             ).exists()
             if overlapping:
                 raise serializers.ValidationError(

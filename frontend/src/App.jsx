@@ -51,6 +51,9 @@ const App = () => {
   const location = useLocation();
   const { tokens } = useSelector(state => state.auth);
 
+  // Hide navbar on specific routes
+  const hideNavBar = location.pathname.startsWith('/book/');
+
   useEffect(() => {
     let interval;
     if (tokens) {

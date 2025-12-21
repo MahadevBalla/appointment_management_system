@@ -447,37 +447,6 @@ class AdminSlotCreateView(generics.CreateAPIView):
             if first_resource:
                 data["resource"] = first_resource.id
 
-        # Check for exact match to update capacity instead of creating new
-        resource_id = data.get("resource")
-        start_str = data.get("start_datetime")
-        end_str = data.get("end_datetime")
-        
-        if resource_id and start_str and end_str:
-            try:
-                from dateutil import parser
-                start_dt = parser.parse(start_str)
-                end_dt = parser.parse(end_str)
-                
-                exact_match = Slot.objects.filter(
-                    resource_id=resource_id, 
-                    start_datetime=start_dt, 
-                    end_datetime=end_dt
-                ).first()
-                
-                if exact_match:
-                    # Update capacity
-                    try:
-                        new_capacity = int(data.get("capacity", 0))
-                        exact_match.capacity += new_capacity
-                        exact_match.save()
-                        
-                        serializer = self.get_serializer(exact_match)
-                        return Response(serializer.data, status=status.HTTP_200_OK)
-                    except ValueError:
-                        pass 
-            except Exception as e:
-                print(f"Date parsing error in slot creation: {e}")
-
         serializer = self.get_serializer(data=data)
         if not serializer.is_valid():
             print(f"Slot creation validation errors: {serializer.errors}")

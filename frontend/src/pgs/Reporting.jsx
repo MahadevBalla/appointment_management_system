@@ -4,6 +4,13 @@ import { useSelector } from 'react-redux';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -21,7 +28,13 @@ import {
   Settings as SettingsIcon,
   BarChart3,
   Calendar,
-  ArrowLeft
+  ArrowLeft,
+  User,
+  Clock,
+  MapPin,
+  Phone,
+  Mail,
+  FileText
 } from 'lucide-react';
 
 const Reporting = () => {
@@ -35,6 +48,10 @@ const Reporting = () => {
 
   // Appointments/bookings data from API
   const [appointments, setAppointments] = useState([]);
+  
+  // Dialog state for booking details
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   // Helper function to get auth token
   const getAuthToken = () => {
@@ -89,7 +106,9 @@ const Reporting = () => {
         answers: booking.customer_phone || Object.values(booking.answers || {}).join(', ') || '',
         selected: false,
         service: booking.service_details?.name || 'N/A',
-        status: booking.status
+        status: booking.status,
+        // Store full booking details for dialog
+        fullDetails: booking
       }));
 
       setAppointments(transformedAppointments);
@@ -110,6 +129,11 @@ const Reporting = () => {
     setAppointments(appointments.map(apt =>
       apt.id === id ? { ...apt, selected: checked } : apt
     ));
+  };
+
+  const handleRowClick = (appointment) => {
+    setSelectedBooking(appointment.fullDetails);
+    setDialogOpen(true);
   };
 
   const allSelected = appointments.length > 0 && appointments.every(apt => apt.selected);
@@ -180,14 +204,19 @@ const Reporting = () => {
                 </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Time</TableHead>
+                <TableHead>Service</TableHead>
                 <TableHead>Resource</TableHead>
                 <TableHead>Answers</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {appointments.map((appointment) => (
-                <TableRow key={appointment.id}>
-                  <TableCell>
+                <TableRow 
+                  key={appointment.id}
+                  className="cursor-pointer hover:bg-gray-50"
+                  onClick={() => handleRowClick(appointment)}
+                >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={appointment.selected}
                       onCheckedChange={(checked) => handleSelectAppointment(appointment.id, checked)}
@@ -195,13 +224,14 @@ const Reporting = () => {
                   </TableCell>
                   <TableCell className="font-medium">{appointment.name}</TableCell>
                   <TableCell>{appointment.time}</TableCell>
+                  <TableCell>{appointment.service}</TableCell>
                   <TableCell>{appointment.resource || '-'}</TableCell>
                   <TableCell className="text-gray-600">{appointment.answers}</TableCell>
                 </TableRow>
               ))}
               {appointments.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                     No appointments found
                   </TableCell>
                 </TableRow>
@@ -210,6 +240,176 @@ const Reporting = () => {
           </Table>
         </div>
       </main>
+
+      {/* Booking Details Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Booking Details</DialogTitle>
+            <DialogDescription>
+              Complete information about this booking
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedBooking && (
+            <div className="space-y-6 py-4">
+              {/* Customer Information */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Customer Information
+                </h3>
+                <div className="grid grid-cols-2 gap-4 pl-6">
+                  <div>
+                    <p className="text-sm text-gray-500">Name</p>
+                    <p className="text-sm font-medium">{selectedBooking.customer_name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Email</p>
+                    <p className="text-sm font-medium flex items-center gap-1">
+                      <Mail className="h-3 w-3" />
+                      {selectedBooking.customer_email || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Phone</p>
+                    <p className="text-sm font-medium flex items-center gap-1">
+                      <Phone className="h-3 w-3" />
+                      {selectedBooking.customer_phone || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Status</p>
+                    <span className={`inline-block px-2 py-1 text-xs rounded-full ${
+                      selectedBooking.status === 'confirmed'
+                        ? 'bg-green-100 text-green-700'
+                        : selectedBooking.status === 'pending'
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : selectedBooking.status === 'cancelled'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {selectedBooking.status}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Service Information */}
+              <div className="space-y-3 border-t pt-4">
+                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Service Information
+                </h3>
+                <div className="grid grid-cols-2 gap-4 pl-6">
+                  <div>
+                    <p className="text-sm text-gray-500">Service</p>
+                    <p className="text-sm font-medium">{selectedBooking.service_details?.name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Resource</p>
+                    <p className="text-sm font-medium">{selectedBooking.resource_details?.name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Quantity</p>
+                    <p className="text-sm font-medium">{selectedBooking.quantity || 1}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Time Information */}
+              <div className="space-y-3 border-t pt-4">
+                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Time Information
+                </h3>
+                <div className="grid grid-cols-2 gap-4 pl-6">
+                  <div>
+                    <p className="text-sm text-gray-500">Start Time</p>
+                    <p className="text-sm font-medium">
+                      {selectedBooking.slot_details?.start_datetime
+                        ? new Date(selectedBooking.slot_details.start_datetime).toLocaleString('en-US', {
+                            weekday: 'short',
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">End Time</p>
+                    <p className="text-sm font-medium">
+                      {selectedBooking.slot_details?.end_datetime
+                        ? new Date(selectedBooking.slot_details.end_datetime).toLocaleString('en-US', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Booked At</p>
+                    <p className="text-sm font-medium">
+                      {selectedBooking.created_at
+                        ? new Date(selectedBooking.created_at).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer Answers */}
+              {selectedBooking.answers && Object.keys(selectedBooking.answers).length > 0 && (
+                <div className="space-y-3 border-t pt-4">
+                  <h3 className="text-sm font-semibold text-gray-700">Customer Responses</h3>
+                  <div className="space-y-2 pl-6">
+                    {Object.entries(selectedBooking.answers).map(([key, value]) => (
+                      <div key={key} className="grid grid-cols-3 gap-4">
+                        <p className="text-sm text-gray-500 font-medium">{key}:</p>
+                        <p className="text-sm col-span-2">{String(value)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Information */}
+              {selectedBooking.payment_status && (
+                <div className="space-y-3 border-t pt-4">
+                  <h3 className="text-sm font-semibold text-gray-700">Payment Information</h3>
+                  <div className="grid grid-cols-2 gap-4 pl-6">
+                    <div>
+                      <p className="text-sm text-gray-500">Payment Status</p>
+                      <p className="text-sm font-medium">{selectedBooking.payment_status}</p>
+                    </div>
+                    {selectedBooking.transaction_id && (
+                      <div>
+                        <p className="text-sm text-gray-500">Transaction ID</p>
+                        <p className="text-sm font-mono text-xs">{selectedBooking.transaction_id}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Booking ID */}
+              <div className="border-t pt-4">
+                <p className="text-xs text-gray-500">Booking ID</p>
+                <p className="text-xs font-mono text-gray-600">{selectedBooking.id}</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
