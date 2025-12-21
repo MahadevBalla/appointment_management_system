@@ -155,46 +155,46 @@ const About = () => {
   const values = [
     {
       icon: IconMicroscope,
-      title: 'Scientific Rigor',
-      description: 'We base all our technology on peer-reviewed science and maintain the highest standards of accuracy.',
+      title: 'Innovation First',
+      description: 'We leverage cutting-edge technology to create seamless booking experiences that save time and reduce scheduling friction.',
     },
     {
       icon: IconBrain,
-      title: 'Continuous Learning',
-      description: 'Our algorithms are constantly improving through ongoing research and development.',
+      title: 'Continuous Improvement',
+      description: 'Our platform evolves based on user feedback and emerging needs in appointment management systems.',
     },
     {
       icon: IconHeartHandshake,
-      title: 'Patient-Centered',
-      description: "'We design every feature with patients' needs, concerns, and experiences in mind.'",
+      title: 'User-Centered Design',
+      description: 'We design every feature with both customers and service providers in mind, ensuring ease of use for all.',
     },
     {
       icon: IconShieldLock,
-      title: 'Ethical AI',
-      description: 'We maintain strict ethical guidelines for how AI is developed and implemented in healthcare.',
+      title: 'Reliability & Security',
+      description: 'We maintain strict security standards and ensure your booking data is always protected and accessible.',
     },
   ];
 
   const faqs = [
     {
-      question: "How accurate is the skin analysis?",
-      answer: "Our AI system has been clinically validated with an accuracy rate of over 91% for common skin conditions, comparable to board-certified dermatologists. However, our tool is meant to be an assistive technology and not a replacement for professional medical diagnosis."
+      question: "How does the appointment booking system work?",
+      answer: "Our platform allows you to browse available services, view real-time availability of providers/resources, select your preferred time slot, and book instantly. The system automatically manages capacity and prevents double bookings."
     },
     {
-      question: "Is my data secure?",
-      answer: "Yes, we take your privacy seriously. All images are encrypted, and we comply with HIPAA regulations. Your data is never sold to third parties, and you can request deletion at any time. Images are only used to provide you with analysis and, with explicit permission, to improve our algorithms."
+      question: "Is my booking information secure?",
+      answer: "Yes, we take your privacy seriously. All booking data is encrypted and stored securely. We comply with industry-standard security protocols. Your information is never shared with third parties without your consent."
     },
     {
-      question: "How should I take photos for best results?",
-      answer: "For optimal results, take photos in natural daylight (not direct sunlight), make sure the affected area is clearly visible and in focus, include a size reference if possible (like a coin), and take multiple angles if the condition appears different from different perspectives."
+      question: "Can I cancel or reschedule my appointment?",
+      answer: "Yes, you can cancel or reschedule appointments based on the cancellation policy set by the service provider. Simply go to your booking confirmation page or profile to manage your appointments. Note that advance payments may have specific refund policies."
     },
     {
-      question: "What skin conditions can your AI detect?",
-      answer: "Our system can currently identify potential indicators of over 50 common skin conditions, including acne, rosacea, eczema, psoriasis, and various forms of skin cancer including melanoma. We're constantly expanding our capabilities through ongoing research."
+      question: "What types of appointments can I book?",
+      answer: "The system supports various appointment types including user-based appointments (with specific service providers) and resource-based appointments (like equipment, rooms, or facilities). Each service has its own duration, capacity, and booking rules."
     },
     {
-      question: "How soon should I expect results?",
-      answer: "Analysis is typically completed within 15-30 seconds after uploading your image. You'll receive a notification when your results are ready to view."
+      question: "Will I receive confirmation after booking?",
+      answer: "Absolutely! You'll receive instant confirmation after booking, including appointment details, date, time, location, and any additional information. You can also add appointments to your Google Calendar or Outlook calendar directly from the confirmation page."
     },
   ];
 
@@ -219,13 +219,13 @@ const About = () => {
               className="text-4xl md:text-5xl font-bold mb-6"
               variants={heroTextAnimation}
             >
-              Our Mission: Early Detection Saves Lives
+              Our Mission: Simplifying Appointment Scheduling
             </MotionTitle>
             <MotionText
               className="text-xl text-white/90 mb-8 leading-relaxed my-2"
               variants={heroTextAnimation}
             >
-              We're leveraging artificial intelligence to make professional-quality skin analysis accessible to everyone, anywhere. By detecting potential issues early, we help people take control of their skin health and seek appropriate care when needed.
+              We're building intelligent scheduling solutions that make appointment booking seamless for everyone. From real-time availability to automated management, we help businesses and customers connect effortlessly.
             </MotionText>
             <MotionGroup
               className='mt-2'
@@ -246,8 +246,8 @@ const About = () => {
                 </ThemeIcon>
               </motion.div>
               <div>
-                <Text fw={700} className="text-white">Clinically Validated</Text>
-                <Text className="text-white/80">91% accuracy rate on common skin conditions</Text>
+                <Text fw={700} className="text-white">Enterprise Ready</Text>
+                <Text className="text-white/80">99.9% uptime with real-time availability sync</Text>
               </div>
             </MotionGroup>
           </motion.div>
@@ -267,13 +267,13 @@ const About = () => {
                 Our Story
               </Title>
               <Text className="text-gray-600 mb-4 leading-relaxed">
-                Founded in 2022 by a team of dermatologists, AI researchers, and healthcare technology experts, our platform was born from a shared vision: making early skin disease detection accessible to everyone.
+                Founded in 2022 by a team of software engineers and scheduling experts, our platform was born from a shared frustration: managing appointments shouldn't be complicated.
               </Text>
               <Text className="text-gray-600 mb-4 leading-relaxed">
-                After witnessing how delayed diagnosis affected patient outcomes, Dr. Sarah Chen partnered with AI specialist Michael Rodriguez to develop an algorithm that could match dermatologists' diagnostic abilities.
+                After experiencing countless scheduling conflicts and missed appointments in various industries, we decided to build a solution that puts both service providers and customers in control.
               </Text>
               <Text className="text-gray-600 mb-6 leading-relaxed">
-                Today, our technology has analyzed over 500,000 skin images and helped countless users identify potential skin conditions early, when treatment is most effective.
+                Today, our technology powers thousands of bookings daily, helping businesses streamline their operations and customers book appointments with ease.
               </Text>
 
               <motion.div
@@ -284,25 +284,25 @@ const About = () => {
                 <Timeline className='mt-4' color="orange" radius="md" active={3} bulletSize={28} lineWidth={3}>
                   <Timeline.Item bullet={<IconCalendarStats size={12} />} title="2022">
                     <Text size="sm" className="text-gray-600">
-                      Company founded, initial AI research begins
+                      Company founded, initial platform development begins
                     </Text>
                   </Timeline.Item>
 
                   <Timeline.Item bullet={<IconCalendarStats size={12} />} title="2023">
                     <Text size="sm" className="text-gray-600">
-                      First clinical validation study completed with 87% accuracy
+                      Beta launch with real-time availability and booking management
                     </Text>
                   </Timeline.Item>
 
                   <Timeline.Item bullet={<IconCalendarStats size={12} />} title="2024">
                     <Text size="sm" className="text-gray-600">
-                      Platform launch, partnerships with 5 leading hospitals
+                      Full platform release, capacity management features added
                     </Text>
                   </Timeline.Item>
 
                   <Timeline.Item bullet={<IconCalendarStats size={12} />} title="2025">
                     <Text size="sm" className="text-gray-600">
-                      Algorithm accuracy reaches 91%, mobile app released
+                      Payment integration, AI booking assistant launched
                     </Text>
                   </Timeline.Item>
                 </Timeline>
@@ -328,7 +328,7 @@ const About = () => {
               >
                 <MotionImage
                   src="/about-team.jpg"
-                  alt="Our team of medical professionals and engineers"
+                  alt="Our team of developers and scheduling experts"
                   className="w-full h-auto"
                   fallbackSrc="https://via.placeholder.com/600x400/teal/ffffff?text=OurTeam"
                   whileHover={{ scale: 1.05 }}

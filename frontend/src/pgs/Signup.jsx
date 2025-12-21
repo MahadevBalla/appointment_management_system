@@ -25,7 +25,7 @@ const Signup = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { isAuthenticated, loading, error, user } = useSelector((state) => state.auth);
-  
+
   const [step, setStep] = useState(1); // 1 = signup form, 2 = OTP verification
   const [signupData, setSignupData] = useState(null);
   const [otp, setOtp] = useState('');
@@ -60,7 +60,7 @@ const Signup = () => {
       password: values.password,
       confirm_password: values.confirm_password,
     }));
-    
+
     if (!result.error) {
       setSignupData({
         email: values.email,
@@ -106,9 +106,9 @@ const Signup = () => {
             <div className="absolute inset-0 bg-gradient-to-b from-teal-600/90 to-teal-800/90 z-10" />
             <Image
               src="/signup-side-image.jpg"
-              alt="Skin health"
+              alt="Appointment Booking"
               className="absolute inset-0 w-full h-full object-contain"
-              fallbackSrc="https://via.placeholder.com/600x900/teal/ffffff?text=SkinHealth"
+              fallbackSrc="https://via.placeholder.com/600x900/teal/ffffff?text=BookingSystem"
             />
             <div className="absolute inset-0 z-20 flex flex-col justify-center p-8">
               <div className="mb-auto">
@@ -124,7 +124,7 @@ const Signup = () => {
               <div className="mb-8">
                 <Title order={2} className="!text-white mb-4">Join Us</Title>
                 <Text className="!text-white/80">
-                  Create an account to start your journey towards better skin health with personalized recommendations.
+                  Create an account to start booking appointments effortlessly and manage your schedule with ease.
                 </Text>
               </div>
             </div>
@@ -257,7 +257,7 @@ const Signup = () => {
                 </Alert>
 
                 <Text className="mb-4 text-center text-gray-600">Enter the verification code</Text>
-                
+
                 <div className="flex justify-center mb-6">
                   <PinInput
                     length={6}

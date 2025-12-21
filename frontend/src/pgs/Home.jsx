@@ -24,27 +24,27 @@ const Home = () => {
   const features = [
     {
       icon: IconStethoscope,
-      title: "Expert Diagnosis",
+      title: "Smart Scheduling",
       description:
-        "Get accurate skin analysis powered by advanced AI technology trained by dermatologists.",
+        "Intelligent appointment system that manages real-time availability and prevents double bookings.",
     },
     {
       icon: IconShieldCheck,
-      title: "Privacy Focused",
+      title: "Secure & Reliable",
       description:
         "Your data is encrypted and never shared. We prioritize your privacy at every step.",
     },
     {
       icon: IconCertificate,
-      title: "Medical Grade",
+      title: "Flexible Management",
       description:
-        "Our algorithms are clinically validated and meet medical standards for accuracy.",
+        "Configure services, set schedules, manage capacity, and control booking rules with ease.",
     },
     {
       icon: IconDeviceAnalytics,
-      title: "Instant Results",
+      title: "Real-Time Updates",
       description:
-        "Receive analysis within seconds of uploading your skin images.",
+        "Get instant notifications and updates about your appointments and booking confirmations.",
     },
   ];
 
@@ -55,31 +55,30 @@ const Home = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-teal-600/60 to-teal-800/90 z-10" />
         <Image
           src="/hero-skin-health.jpeg"
-          alt="Skin health"
+          alt="Appointment Booking"
           className="absolute inset-0 w-full h-full object-cover"
-          fallbackSrc="https://via.placeholder.com/1200x700/teal/ffffff?text=SkinHealth"
+          fallbackSrc="https://via.placeholder.com/1200x700/teal/ffffff?text=BookingSystem"
         />
         <Container size="lg" className="relative z-20 h-full">
           <div className="flex flex-col justify-center h-full pt-16 pb-20 gap-y-6">
             <Title className="text-white text-4xl md:text-6xl font-bold text-center w-full leading-tight mb-6">
-              Advanced Skin Disease Detection Powered by AI
+              The Perfect Booking System for Appointments
             </Title>
             <Text className="text-white/90 text-xl text-center w-full mb-10 ">
-              Get accurate skin analysis in seconds. Upload a photo and our AI
-              will help identify potential skin conditions with medical-grade
-              precision.
+              Seamlessly schedule appointments with real-time availability, flexible booking rules, and automated management.
+              Your complete solution for hassle-free scheduling.
             </Text>
             <Group className="w-full flex flex-row !justify-center center">
               <Button
                 component={Link}
-                to="/upload"
+                to="/customer-home"
                 size="lg"
                 radius="md"
                 className="
     !bg-gradient-to-r !from-red-500 !to-orange-500 !text-white !font-semibold !shadow-lg !shadow-red-500/50 !transform hover:scale-103 !transition-all !duration-300 hover:!bg-gradient-to-r hover:!from-orange-500 hover:!to-red-500 
     active:!scale-95 active:!shadow-orange-600/50 focus:!outline-none focus:!ring-2 focus:!ring-red-500 focus:!ring-offset-2"
               >
-                Analyze Your Skin Now
+                Book an Appointment
               </Button>
               <Button
                 color="white"
@@ -103,8 +102,8 @@ const Home = () => {
           Why Choose Our Platform
         </Title>
         <Text className="text-gray-600 text-center w-full mx-auto mb-16">
-          Our advanced AI system helps detect potential skin conditions early,
-          providing peace of mind and encouraging timely medical consultations.
+          Our appointment booking system provides flexible scheduling, real-time availability tracking,
+          and comprehensive management tools for seamless booking experiences.
         </Text>
 
         <SimpleGrid className="mt-4" cols={{ base: 1, sm: 2, md: 4 }} spacing="xl">
@@ -143,35 +142,35 @@ const Home = () => {
             How It Works
           </Title>
           <Text className="text-gray-600 text-center mx-auto mb-16 w-full">
-            Get started in three simple steps and receive accurate skin analysis
-            powered by our advanced AI algorithms.
+            Get started in three simple steps and book your appointment
+            with real-time availability and instant confirmations.
           </Text>
 
           <SimpleGrid className="mt-4" cols={{ base: 1, md: 3 }} spacing="xl">
             {[
               {
-                title: "Upload a Photo",
+                title: "Select Service",
                 description:
-                  "Take a clear photo of the skin area you're concerned about and upload it securely to our platform.",
+                  "Browse available appointment types and services. Choose the one that fits your needs and view provider availability.",
                 image: "/upload-illustration.jpg",
                 fallback:
-                  "https://via.placeholder.com/500x300/teal/ffffff?text=Upload",
+                  "https://via.placeholder.com/500x300/teal/ffffff?text=Select",
               },
               {
-                title: "AI Analysis",
+                title: "Pick Date & Time",
                 description:
-                  "Our advanced algorithm analyzes the image, looking for patterns associated with various skin conditions.",
+                  "View real-time available slots, select your preferred date and time, and specify capacity if needed.",
                 image: "/analysis-illustration.jpg",
                 fallback:
-                  "https://via.placeholder.com/500x300/teal/ffffff?text=Analysis",
+                  "https://via.placeholder.com/500x300/teal/ffffff?text=Schedule",
               },
               {
-                title: "Get Results",
+                title: "Confirm Booking",
                 description:
-                  "Receive a detailed report with potential matches and recommended next steps for your skin health.",
+                  "Fill in required details, make payment if applicable, and receive instant confirmation with appointment summary.",
                 image: "/results-illustration.jpeg",
                 fallback:
-                  "https://via.placeholder.com/500x300/teal/ffffff?text=Results",
+                  "https://via.placeholder.com/500x300/teal/ffffff?text=Confirm",
               },
             ].map((step, index) => (
               <Card
@@ -205,14 +204,14 @@ const Home = () => {
           <Center mt={40}>
             <Button
               component={Link}
-              to="/upload"
+              to="/customer-home"
               size="lg"
               radius="md"
               rightSection={<IconArrowRight size={18} />}
               className="!bg-gradient-to-r !from-red-500 !to-orange-500 !text-white !font-semibold !shadow-lg !shadow-red-500/50 !transform hover:scale-103 !transition-all !duration-300 hover:!bg-gradient-to-r hover:!from-orange-500 hover:!to-red-500 
     active:!scale-95 active:!shadow-orange-600/50 focus:!outline-none focus:!ring-2 focus:!ring-red-500 focus:!ring-offset-2"
             >
-              Try It Now
+              Start Booking Now
             </Button>
           </Center>
         </Container>
@@ -233,12 +232,11 @@ const Home = () => {
 
             <div className="relative z-10">
               <Title order={2} className="text-teal-800 text-center mb-4">
-                Take Control of Your Skin Health Today
+                Start Managing Appointments Effortlessly
               </Title>
               <Text className="mt-2 text-gray-600 text-center w-full mx-auto mb-8">
-                Join thousands of users who have gained peace of mind through
-                early detection and professional guidance for their skin
-                concerns.
+                Join thousands of users who streamline their scheduling with our smart booking system.
+                Experience hassle-free appointment management today.
               </Text>
               <Group justify="center" gap="md" className="mt-4">
                 <Button

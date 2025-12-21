@@ -58,7 +58,7 @@ const Reporting = () => {
     try {
       setLoading(true);
       setError('');
-      
+
       const response = await fetch('http://localhost:8000/api/admin/bookings/', {
         headers: {
           'Authorization': `Bearer ${getAuthToken()}`
@@ -71,19 +71,19 @@ const Reporting = () => {
 
       const data = await response.json();
       console.log('Bookings data:', data);
-      
+
       // Transform API data to match appointments format
       const transformedAppointments = data.map(booking => ({
         id: booking.id,
         name: booking.customer_name || 'N/A',
-        time: booking.slot_details?.start_datetime 
-          ? new Date(booking.slot_details.start_datetime).toLocaleString('en-US', { 
-              month: 'short', 
-              day: 'numeric', 
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: false 
-            })
+        time: booking.slot_details?.start_datetime
+          ? new Date(booking.slot_details.start_datetime).toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: false
+          })
           : 'N/A',
         resource: booking.resource_details?.name || '',
         answers: booking.customer_phone || Object.values(booking.answers || {}).join(', ') || '',
@@ -137,7 +137,7 @@ const Reporting = () => {
               className="flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              
+
             </Button>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Reporting</h1>
@@ -157,8 +157,8 @@ const Reporting = () => {
             <button
               onClick={() => setActiveTab('Appointmanrts')}
               className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'Appointmanrts'
-                  ? 'border-teal-600 text-teal-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-teal-600 text-teal-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
               Appointmanrts

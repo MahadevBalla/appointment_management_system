@@ -4,10 +4,12 @@ from google import genai
 from google.genai import types
 
 from .prompt import SYSTEM_PROMPT
+from .actions import AGENT_ACTIONS
 
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 MODEL_NAME = "gemini-2.5-flash"
+ALLOWED_ACTIONS = set(AGENT_ACTIONS.keys())
 
 
 def run_llm(user_message, conversation_context=None):
@@ -35,9 +37,21 @@ def run_llm(user_message, conversation_context=None):
         )
 
         text = response.text.strip()
-        return json.loads(text)
+        llm_output = json.loads(text)
+
+        if "message" in llm_output:
+            return llm_output
+
+        action = llm_output.get("action")
+        if action not in AGENT_ACTIONS:
+            return {
+                "message": (
+                    "I can help with booking appointments, checking availability, "
+                    "and payments only."
+                )
+            }
+
+        return llm_output
 
     except Exception as e:
-        return {
-            "message": f"LLM error: {str(e)}"
-        }
+        return {"message": f"LLM error: {str(e)}"}

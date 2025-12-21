@@ -147,9 +147,9 @@ const Login = () => {
             <div className="absolute inset-0 bg-gradient-to-b from-teal-600/90 to-teal-800/90 z-10" />
             <Image
               src="/login-side-image.jpg"
-              alt="Skin health"
+              alt="Appointment Booking"
               className="absolute inset-0 w-full h-full object-cover"
-              fallbackSrc="https://via.placeholder.com/600x900/teal/ffffff?text=SkinHealth"
+              fallbackSrc="https://via.placeholder.com/600x900/teal/ffffff?text=BookingSystem"
             />
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-8">
               <div className="mb-auto">
@@ -168,12 +168,12 @@ const Login = () => {
                   Welcome Back
                 </Title>
                 <Text className="!text-white/80">
-                  Access your account to check your skin analysis history and get personalized recommendations.
+                  Access your account to manage appointments, view bookings, and track your scheduling history.
                 </Text>
               </div>
               <div className="mt-auto text-center">
                 <Text size="xs" className="!text-white/60">
-                  "This platform has completely changed how I monitor my skin health."
+                  "This platform has completely simplified how I manage my appointments."
                 </Text>
                 <Group align="center" mt="xs" className="text-white">
                   <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm" />

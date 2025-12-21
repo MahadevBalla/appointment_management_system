@@ -1,5 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { MantineProvider, ActionIcon, Drawer } from '@mantine/core';
 import { MessageCircle } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -23,7 +23,7 @@ const CustomerBooking = lazy(() => import("./pgs/CustomerBooking"));
 const BookingDetails = lazy(() => import("./pgs/BookingDetails"));
 const BookingConfirmation = lazy(() => import("./pgs/BookingConfirmation"));
 const CustomerProfile = lazy(() => import("./pgs/CustomerProfile"));
-const AIChatAssistant = lazy(() => import("./components/AIChatAssistant"));
+const BookingAssistant = lazy(() => import("./components/BookingAssistant"));
 
 
 function PrivateRoute({ children }) {
@@ -40,10 +40,8 @@ function AdminRoute({ children }) {
 
   // Redirect customers to customer home
   if (user && user.role === 'customer') {
-    window.location.href = '/customer/home';
-    return null;
+    return <Navigate to="/customerhome" replace />;
   }
-
   return children;
 }
 
@@ -60,13 +58,13 @@ const App = () => {
       interval = setInterval(() => dispatch(refreshToken(tokens.refresh)), 4 * 60 * 1000);
     }
     return () => clearInterval(interval);
-  }, [tokens]);
+  }, [tokens, dispatch]);
 
   return (
     <MantineProvider withGlobalStyles withNormalizeCSS>
       <div className="relative flex flex-col min-h-screen">
-        <NavBar />
-        <div className={`flex items-center justify-center flex-grow pt-20 bg-gray-50`}>
+        {!hideNavBar && <NavBar />}
+        <div className={`flex items-center justify-center grow ${hideNavBar ? '' : 'pt-20'} bg-gray-50`}>
           <Suspense fallback={<div className="p-6 text-center">Loading...</div>}>
             <Routes>
               <Route path="/" element={<Home />} />
@@ -197,8 +195,8 @@ const App = () => {
             radius="xl"
             size="xl"
             onClick={() => setChatDrawerOpen(true)}
-            className="w-14 h-14 shadow-lg !bg-gradient-to-r !from-red-500 !to-orange-500 !text-white !font-semibold !shadow-red-500/50 !transform hover:scale-103 !transition-all !duration-300 hover:!bg-gradient-to-r hover:!from-orange-500 hover:!to-red-500 
-active:!scale-95 active:!shadow-orange-600/50 focus:!outline-none focus:!ring-2 "
+            className="w-14 h-14 shadow-lg bg-linear-to-r! from-red-500! to-orange-500! text-white! font-semibold! shadow-red-500/50! transform! hover:scale-103 transition-all! duration-300! hover:bg-linear-to-r! hover:from-orange-500! hover:to-red-500! 
+active:scale-95! active:shadow-orange-600/50! focus:outline-none! focus:ring-2!"
           >
             <MessageCircle size={24} />
           </ActionIcon>
@@ -208,14 +206,14 @@ active:!scale-95 active:!shadow-orange-600/50 focus:!outline-none focus:!ring-2 
           opened={chatDrawerOpen}
           onClose={() => setChatDrawerOpen(false)}
           padding={0}
-          size="md"
+          size="xl"
           position="right"
           title=""
           classNames={{ title: 'text-teal-600 font-bold px-4 py-2' }}
           zIndex={1000}
         >
-          <div className="h-[calc(100vh-60px)]">
-            <AIChatAssistant isVisible={chatDrawerOpen} />
+          <div className="h-full">
+            <BookingAssistant isVisible={chatDrawerOpen} />
           </div>
         </Drawer>
       </div>

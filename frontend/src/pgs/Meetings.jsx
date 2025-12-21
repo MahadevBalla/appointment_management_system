@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  DropdownMenu, 
+  DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
@@ -17,8 +17,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Settings as SettingsIcon, 
+import {
+  Settings as SettingsIcon,
   BarChart3,
   Calendar,
   X,
@@ -30,7 +30,7 @@ const Meetings = () => {
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState('Dental care');
-  
+
   // Dummy meetings data
   const [meetings, setMeetings] = useState([
     {
@@ -63,7 +63,7 @@ const Meetings = () => {
   const statusOptions = ['Booked', 'Request', 'Cancelled'];
 
   const handleStatusChange = (meetingId, newStatus) => {
-    setMeetings(meetings.map(meeting => 
+    setMeetings(meetings.map(meeting =>
       meeting.id === meetingId ? { ...meeting, status: newStatus } : meeting
     ));
   };
@@ -91,6 +91,63 @@ const Meetings = () => {
 
   return (
     <div className="w-full min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <img src="/logo-white.png" alt="Logo" className="h-8 w-8" />
+                <span className="text-xl font-bold text-teal-600">Bookify</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/reporting')}
+                className="flex items-center gap-2"
+              >
+                <BarChart3 className="h-4 w-4" />
+                Reporting
+              </Button>
+
+              {/* Settings Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <SettingsIcon className="h-4 w-4" />
+                    Settings
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => navigate('/settings/users')}>
+                    Users
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/settings/resources')}>
+                    Resources
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/meetings')}
+                className="flex items-center gap-2"
+              >
+                <Calendar className="h-4 w-4" />
+                Meetings
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
@@ -135,7 +192,7 @@ const Meetings = () => {
             </TableHeader>
             <TableBody>
               {meetings
-                .filter(meeting => 
+                .filter(meeting =>
                   !searchQuery || meeting.appointment.toLowerCase().includes(searchQuery.toLowerCase())
                 )
                 .map((meeting) => (
@@ -169,7 +226,7 @@ const Meetings = () => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-32">
                           {statusOptions.map((status) => (
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               key={status}
                               onClick={() => handleStatusChange(meeting.id, status)}
                             >
@@ -181,18 +238,18 @@ const Meetings = () => {
                     </TableCell>
                   </TableRow>
                 ))}
-              {meetings.filter(meeting => 
+              {meetings.filter(meeting =>
                 !searchQuery || meeting.appointment.toLowerCase().includes(searchQuery.toLowerCase())
               ).length === 0 && (
-                <TableRow>
-                  <TableCell 
-                    colSpan={hasResourceType ? 8 : 6} 
-                    className="text-center py-8 text-gray-500"
-                  >
-                    No meetings found
-                  </TableCell>
-                </TableRow>
-              )}
+                  <TableRow>
+                    <TableCell
+                      colSpan={hasResourceType ? 8 : 6}
+                      className="text-center py-8 text-gray-500"
+                    >
+                      No meetings found
+                    </TableCell>
+                  </TableRow>
+                )}
             </TableBody>
           </Table>
         </div>

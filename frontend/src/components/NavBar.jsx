@@ -59,14 +59,6 @@ const NavBar = () => {
           >
             Dashboard
           </Button>
-          <Link to={user?.role === 'customer' ? '/customerprofile' : '/profile'}>
-            <Button
-              color={(location.pathname === '/profile' || location.pathname === '/customerprofile') ? 'teal' : 'gray'}
-              variant={(location.pathname === '/profile' || location.pathname === '/customerprofile') ? 'filled' : 'subtle'}
-            >
-              Profile
-            </Button>
-          </Link>
           <Menu shadow="md" width={200}>
             <Menu.Target>
               <Avatar
@@ -80,6 +72,12 @@ const NavBar = () => {
             <Menu.Dropdown>
               <Menu.Label>{user?.full_name || 'User'}</Menu.Label>
               <Menu.Divider />
+              <Menu.Item
+                icon={<IconUser size={16} />}
+                onClick={() => navigate(user?.role === 'customer' ? '/customerprofile' : '/profile')}
+              >
+                Profile
+              </Menu.Item>
               <Menu.Item icon={<IconLogout size={16} />} color="red" onClick={handleLogout}>
                 Logout
               </Menu.Item>
@@ -114,15 +112,14 @@ const NavBar = () => {
             >
               Dashboard
             </Button>
-            <Link to={user?.role === 'customer' ? '/customerprofile' : '/profile'} onClick={() => setOpened(false)}>
-              <Button
-                color={(location.pathname === '/profile' || location.pathname === '/customerprofile') ? 'teal' : 'gray'}
-                variant={(location.pathname === '/profile' || location.pathname === '/customerprofile') ? 'filled' : 'subtle'}
-                fullWidth
-              >
-                Profile
-              </Button>
-            </Link>
+            <Button
+              color={(location.pathname === '/profile' || location.pathname === '/customerprofile') ? 'teal' : 'gray'}
+              variant={(location.pathname === '/profile' || location.pathname === '/customerprofile') ? 'filled' : 'subtle'}
+              fullWidth
+              onClick={() => { navigate(user?.role === 'customer' ? '/customerprofile' : '/profile'); setOpened(false); }}
+            >
+              Profile
+            </Button>
             <Button
               color="red"
               variant="subtle"
@@ -141,7 +138,7 @@ const NavBar = () => {
     <nav className="fixed top-0 w-full bg-gray-100 shadow-md py-4 px-6 z-50 flex justify-between items-center">
       <div className="flex flex-row items-center text-center gap-1">
         <div><img src="/logo-white.png" alt="" className="h-8 w-8" /></div>
-        <div className="text-xl font-bold text-teal-600">NeoDermaScan</div>
+        <div className="text-xl font-bold text-teal-600">Bookify</div>
       </div>
       {desktopNav}
       <div className="md:hidden">

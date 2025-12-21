@@ -29,12 +29,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { 
-  Upload, 
-  X, 
-  Eye, 
-  FileText, 
-  Settings as SettingsIcon, 
+import {
+  Upload,
+  X,
+  Eye,
+  FileText,
+  Settings as SettingsIcon,
   BarChart3,
   Calendar,
   Plus,
@@ -271,7 +271,7 @@ const AppointmentForm = () => {
   };
 
   const handleUpdateSchedule = (id, field, value) => {
-    setSchedule(schedule.map(s => 
+    setSchedule(schedule.map(s =>
       s.id === id ? { ...s, [field]: value } : s
     ));
   };
@@ -289,12 +289,12 @@ const AppointmentForm = () => {
     if (!newQuestion.question.trim()) {
       return; // Don't save if question is empty
     }
-    
+
     const newId = questions.length > 0 ? Math.max(...questions.map(q => q.id)) + 1 : 1;
-    
+
     // Generate key from question text (lowercase, underscored)
     const key = newQuestion.question.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-    
+
     const questionData = {
       id: newId,
       question: newQuestion.question,
@@ -309,7 +309,7 @@ const AppointmentForm = () => {
       try {
         setLoading(true);
         setError('');
-        
+
         const backendQuestion = {
           key: key,
           label: newQuestion.question,
@@ -318,7 +318,7 @@ const AppointmentForm = () => {
         };
 
         await serviceAPI.addQuestion(id, backendQuestion);
-        
+
         // Add to local state after successful API call
         setQuestions([...questions, questionData]);
         setDialogOpen(false);
@@ -350,7 +350,7 @@ const AppointmentForm = () => {
   };
 
   const handleUpdateQuestion = (id, field, value) => {
-    setQuestions(questions.map(q => 
+    setQuestions(questions.map(q =>
       q.id === id ? { ...q, [field]: value } : q
     ));
   };
@@ -381,12 +381,12 @@ const AppointmentForm = () => {
     try {
       setDeletingBooking(true);
       setError('');
-      
+
       await bookingAPI.adminDeleteBooking(deleteBookingId);
-      
+
       // Refresh slots to show updated data
       await fetchSlots();
-      
+
       setDeleteBookingId(null);
     } catch (error) {
       console.error('Error deleting booking:', error);
@@ -570,15 +570,72 @@ const AppointmentForm = () => {
 
   return (
     <div className="w-full min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <img src="/logo-white.png" alt="Logo" className="h-8 w-8" />
+                <span className="text-xl font-bold text-teal-600">Bookify</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/reporting')}
+                className="flex items-center gap-2"
+              >
+                <BarChart3 className="h-4 w-4" />
+                Reporting
+              </Button>
+
+              {/* Settings Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <SettingsIcon className="h-4 w-4" />
+                    Settings
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => navigate('/settings/users')}>
+                    Users
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/settings/resources')}>
+                    Resources
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/meetings')}
+                className="flex items-center gap-2"
+              >
+                <Calendar className="h-4 w-4" />
+                Meetings
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Error Alert */}
         {error && (
-          <Alert 
-            icon={<AlertCircle size={16} />} 
-            color="red" 
+          <Alert
+            icon={<AlertCircle size={16} />}
+            color="red"
             mb="md"
-            onClose={() => setError('')} 
+            onClose={() => setError('')}
             withCloseButton
           >
             {error}
@@ -597,7 +654,7 @@ const AppointmentForm = () => {
           </Button>
           <Button
             variant="outline"
-            onClick={() => {/* Preview functionality */}}
+            onClick={() => {/* Preview functionality */ }}
             className="flex items-center gap-2"
           >
             <Eye className="h-4 w-4" />
@@ -828,25 +885,24 @@ const AppointmentForm = () => {
                                 <span className="text-sm font-medium text-gray-600">
                                   Capacity: {slot.booked_count} / {slot.capacity}
                                 </span>
-                                <span className={`px-2 py-1 text-xs rounded-full ${
-                                  slot.booked_count >= slot.capacity
+                                <span className={`px-2 py-1 text-xs rounded-full ${slot.booked_count >= slot.capacity
                                     ? 'bg-red-100 text-red-700'
                                     : slot.booked_count > 0
-                                    ? 'bg-yellow-100 text-yellow-700'
-                                    : 'bg-green-100 text-green-700'
-                                }`}>
+                                      ? 'bg-yellow-100 text-yellow-700'
+                                      : 'bg-green-100 text-green-700'
+                                  }`}>
                                   {slot.booked_count >= slot.capacity ? 'Full' : slot.booked_count > 0 ? 'Partial' : 'Available'}
                                 </span>
                               </div>
                             </div>
-                            
+
                             {slot.bookings && slot.bookings.length > 0 && (
                               <div className="mt-3 border-t border-gray-200 pt-3">
                                 <h4 className="text-sm font-semibold text-gray-700 mb-2">Bookings ({slot.bookings.length})</h4>
                                 <div className="space-y-2">
                                   {slot.bookings.map((booking) => (
                                     <div key={booking.booking_id} className="border border-gray-200 rounded-lg overflow-hidden">
-                                      <div 
+                                      <div
                                         className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
                                         onClick={() => toggleBookingDetails(booking.booking_id)}
                                       >
@@ -856,15 +912,14 @@ const AppointmentForm = () => {
                                             <span className="font-medium">{booking.customer_name}</span>
                                           </div>
                                           <span className="text-sm text-gray-600">Qty: {booking.quantity}</span>
-                                          <span className={`px-2 py-1 text-xs rounded-full ${
-                                            booking.status === 'confirmed'
+                                          <span className={`px-2 py-1 text-xs rounded-full ${booking.status === 'confirmed'
                                               ? 'bg-green-100 text-green-700'
                                               : booking.status === 'pending'
-                                              ? 'bg-yellow-100 text-yellow-700'
-                                              : booking.status === 'cancelled'
-                                              ? 'bg-red-100 text-red-700'
-                                              : 'bg-blue-100 text-blue-700'
-                                          }`}>
+                                                ? 'bg-yellow-100 text-yellow-700'
+                                                : booking.status === 'cancelled'
+                                                  ? 'bg-red-100 text-red-700'
+                                                  : 'bg-blue-100 text-blue-700'
+                                            }`}>
                                             {booking.status}
                                           </span>
                                         </div>
@@ -874,7 +929,7 @@ const AppointmentForm = () => {
                                           <ChevronDown className="h-4 w-4 text-gray-500" />
                                         )}
                                       </div>
-                                      
+
                                       {expandedBookings[booking.booking_id] && (
                                         <div className="p-4 bg-white border-t border-gray-200 space-y-3">
                                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -911,7 +966,7 @@ const AppointmentForm = () => {
                                               </span>
                                             </div>
                                           </div>
-                                          
+
                                           {booking.answers && Object.keys(booking.answers).length > 0 && (
                                             <div className="pt-3 border-t border-gray-100">
                                               <h5 className="text-sm font-semibold text-gray-700 mb-2">Customer Responses</h5>
@@ -1111,7 +1166,7 @@ const AppointmentForm = () => {
                         Add a question
                       </DialogTitle>
                     </DialogHeader>
-                    
+
                     <div className="space-y-6 py-2">
                       {/* Answer Type Buttons */}
                       <div>
@@ -1174,7 +1229,7 @@ const AppointmentForm = () => {
                       >
                         Cancel
                       </Button>
-                      <Button 
+                      <Button
                         onClick={handleSaveQuestion}
                         className="bg-teal-600 text-white hover:bg-teal-700"
                       >

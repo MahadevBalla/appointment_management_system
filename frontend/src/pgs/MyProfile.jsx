@@ -176,26 +176,26 @@ const MyProfile = () => {
   // Filter only booked appointments for the upcoming appointments section
   const bookedAppointments = appointments.filter(appointment => appointment.status === 'booked');
 
-  // Stats data - Removed the "Conditions Resolved" stat
+  // Stats data
   const stats = [
     {
-      title: "Analyses",
+      title: "Bookings",
       value: analysisHistory.length.toString(),
-      description: "Total skin analyses",
+      description: "Total appointments booked",
       icon: IconFileAnalytics,
       color: "teal"
     },
     {
-      title: "High Risk",
+      title: "Pending",
       value: analysisHistory.filter(a => a.risk === 'High').length.toString(),
-      description: "Requiring attention",
+      description: "Awaiting confirmation",
       icon: IconAlertTriangle,
       color: "red"
     },
     {
-      title: "Follow-ups",
+      title: "Upcoming",
       value: bookedAppointments.length.toString(),
-      description: "Scheduled checkups",
+      description: "Confirmed appointments",
       icon: IconCalendarStats,
       color: "blue"
     }
